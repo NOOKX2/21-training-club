@@ -1,0 +1,336 @@
+import { v4 as uuidv4 } from "uuid";
+import { ObjectId } from "mongodb";
+import { NextRequest } from "next/server";
+import { getDb } from "../db";
+import { getCurrentUser } from "../auth";
+import { json, error, parseBody, handleAuthError } from "../api-helpers";
+
+export async function handleFormChecks(
+  req: NextRequest,
+  segments: string[]
+): Promise<Response> {
+  try {
+    if (segments[1] === "submit" && req.method === "POST") {
+      const user = await getCurrentUser(req);
+      if (user.tier_level !== "Tier 3") {
+        return error("Form check submission is only available for Tier 3 members", 403);
+      }
+      const submission = await parseBody<Record<string, unknown>>(req);
+      const doc = {
+        id: uuidv4(),
+        ...submission,
+        user_name: user.name,
+        submitted_at: new Date().toISOString(),
+        status: "pending",
+      };
+      const db = await getDb();
+      await db.collection("form_checks").insertOne(doc);
+      return json({ message: "Form check submitted successfully", submission: doc });
+    }
+  } catch (e) {
+    return handleAuthError(e);
+  }
+  return error("Not found", 404);
+}
+
+export async function handleStreak(
+  req: NextRequest,
+  userId: string
+): Promise<Response> {
+  try {
+    await getCurrentUser(req);
+    const db = await getDb();
+    const logs = await db
+      .collection("workout_logs")
+      .find({ user_id: userId })
+      .project({ timestamp: 1, _id: 0 })
+      .sort({ timestamp: -1 })
+      .limit(500)
+      .toArray();
+
+    const dates = [
+      ...new Set(
+        logs
+          .map((l) => String(l.timestamp).slice(0, 10))
+          .filter(Boolean)
+      ),
+    ].sort();
+
+    let current_streak = 0;
+    let longest_streak = 0;
+    let temp = 0;
+
+    if (dates.length > 0) {
+      for (let i = 0; i < dates.length; i++) {
+        if (i === 0) temp = 1;
+        else {
+          const prev = new Date(dates[i - 1]);
+          const curr = new Date(dates[i]);
+          const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
+          if (diff === 1) temp += 1;
+          else {
+            longest_streak = Math.max(longest_streak, temp);
+            temp = 1;
+          }
+        }
+      }
+      longest_streak = Math.max(longest_streak, temp);
+      const today = new Date();
+      const last = new Date(dates[dates.length - 1]);
+      const daysSince = (today.getTime() - last.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSince <= 1) current_streak = temp;
+    }
+
+    return json({ current_streak, longest_streak });
+  } catch (e) {
+    return handleAuthError(e);
+  }
+}
+
+export async function handleWeightTracking(
+  req: NextRequest,
+  segments: string[]
+): Promise<Response> {
+  try {
+    const user = await getCurrentUser(req);
+    const db = await getDb();
+
+    if (req.method === "POST") {
+      const body = await parseBody<{ weight?: number; height?: number }>(req);
+      if (!body.weight) return error("Weight is required", 400);
+      const entry = {
+        id: uuidv4(),
+        user_id: user.id,
+        weight: Number(body.weight),
+        height: body.height ? Number(body.height) : null,
+        date: new Date().toISOString(),
+      };
+      await db.collection("weight_tracking").insertOne(entry);
+      if (body.height) {
+        await db.collection("users").updateOne(
+          { _id: new ObjectId(user.id) },
+          { $set: { height: Number(body.height) } }
+        );
+      }
+      return json(entry);
+    }
+
+    if (segments[1] && req.method === "GET") {
+      const entries = await db
+        .collection("weight_tracking")
+        .find({ user_id: segments[1] })
+        .project({ _id: 0 })
+        .sort({ date: 1 })
+        .toArray();
+      return json(entries);
+    }
+  } catch (e) {
+    return handleAuthError(e);
+  }
+  return error("Not found", 404);
+}
+
+export async function handleUserProfileGet(
+  req: NextRequest,
+  userId: string
+): Promise<Response> {
+  try {
+    await getCurrentUser(req);
+    const db = await getDb();
+    const doc = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+    return json({ height: doc?.height ?? null });
+  } catch (e) {
+    return handleAuthError(e);
+  }
+}
+
+export async function handleUpdateProfile(req: NextRequest): Promise<Response> {
+  try {
+    const user = await getCurrentUser(req);
+    const body = await parseBody<{ name?: string; profile_image?: string }>(req);
+    const update: Record<string, string> = {};
+    if (body.name) update.name = body.name;
+    if (body.profile_image) update.profile_image = body.profile_image;
+    if (Object.keys(update).length > 0) {
+      await getDb().then((db) =>
+        db.collection("users").updateOne({ _id: new ObjectId(user.id) }, { $set: update })
+      );
+    }
+    return json({ message: "Profile updated successfully" });
+  } catch (e) {
+    return handleAuthError(e);
+  }
+}
+
+export async function handleMealPlan(
+  req: NextRequest,
+  userId: string
+): Promise<Response> {
+  try {
+    await getCurrentUser(req);
+    const db = await getDb();
+    const userDoc = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+    if (!userDoc?.assigned_meal_plan) return json(null);
+    const plan = await db.collection("meal_plans").findOne(
+      { id: userDoc.assigned_meal_plan },
+      { projection: { _id: 0 } }
+    );
+    return json(plan);
+  } catch (e) {
+    return handleAuthError(e);
+  }
+}
+
+export async function handleWeeklyReports(
+  req: NextRequest,
+  userId: string
+): Promise<Response> {
+  try {
+    await getCurrentUser(req);
+    const reports = await getDb().then((db) =>
+      db
+        .collection("weekly_reports")
+        .find({ user_id: userId })
+        .project({ _id: 0 })
+        .sort({ week_number: -1 })
+        .toArray()
+    );
+    return json(reports);
+  } catch (e) {
+    return handleAuthError(e);
+  }
+}
+
+export async function handleProgress(
+  req: NextRequest,
+  segments: string[]
+): Promise<Response> {
+  try {
+    const user = await getCurrentUser(req);
+
+    if (segments[1] === "photo" && req.method === "POST") {
+      const photo = await parseBody<{
+        user_id: string;
+        photo_base64: string;
+        weight?: number;
+        notes?: string;
+      }>(req);
+      const doc = {
+        id: uuidv4(),
+        ...photo,
+        notes: photo.notes ?? "",
+        date: new Date().toISOString(),
+      };
+      await getDb().then((db) => db.collection("progress_photos").insertOne(doc));
+      return json(doc);
+    }
+
+    if (segments[1] && req.method === "GET") {
+      const userId = segments[1];
+      if (user.id !== userId && user.role !== "admin") {
+        return error("Access denied", 403);
+      }
+      const photos = await getDb().then((db) =>
+        db
+          .collection("progress_photos")
+          .find({ user_id: userId })
+          .project({ _id: 0 })
+          .sort({ date: 1 })
+          .toArray()
+      );
+      return json({ photos, measurements: [] });
+    }
+  } catch (e) {
+    return handleAuthError(e);
+  }
+  return error("Not found", 404);
+}
+
+export async function handleLiftProgress(
+  req: NextRequest,
+  segments: string[]
+): Promise<Response> {
+  try {
+    const db = await getDb();
+
+    if (req.method === "POST" && segments.length === 1) {
+      await getCurrentUser(req);
+      const lift = await parseBody<{
+        user_id: string;
+        exercise_name: string;
+        weight_lifted: number;
+      }>(req);
+      const existing = await db.collection("lift_progress").findOne({
+        user_id: lift.user_id,
+        exercise_name: lift.exercise_name,
+      });
+      if (existing?.verification_status === "Pending") {
+        return error(
+          "You already have a pending submission for this exercise. Wait for coach approval.",
+          400
+        );
+      }
+      const userDoc = await db.collection("users").findOne({
+        _id: new ObjectId(lift.user_id),
+      });
+      const doc = {
+        id: uuidv4(),
+        user_id: lift.user_id,
+        user_name: userDoc?.name ?? "",
+        user_email: userDoc?.email ?? "",
+        exercise_name: lift.exercise_name,
+        weight_lifted: lift.weight_lifted,
+        verification_status: "Pending",
+        is_visible_on_profile: true,
+        submitted_at: new Date().toISOString(),
+      };
+      if (existing) {
+        await db.collection("lift_progress").updateOne(
+          { user_id: lift.user_id, exercise_name: lift.exercise_name },
+          { $set: doc }
+        );
+      } else {
+        await db.collection("lift_progress").insertOne(doc);
+      }
+      return json(doc);
+    }
+
+    if (segments[1] && !segments[2] && req.method === "GET") {
+      await getCurrentUser(req);
+      const lifts = await db
+        .collection("lift_progress")
+        .find({ user_id: segments[1] })
+        .project({ _id: 0 })
+        .toArray();
+      return json(lifts);
+    }
+
+    if (segments[1] && segments[2] === "toggle-visibility" && req.method === "PUT") {
+      await getCurrentUser(req);
+      const lift = await db.collection("lift_progress").findOne({ id: segments[1] });
+      if (!lift) return error("Lift record not found", 404);
+      const newVis = !lift.is_visible_on_profile;
+      await db.collection("lift_progress").updateOne(
+        { id: segments[1] },
+        { $set: { is_visible_on_profile: newVis } }
+      );
+      return json({ is_visible_on_profile: newVis });
+    }
+  } catch (e) {
+    return handleAuthError(e);
+  }
+  return error("Not found", 404);
+}
+
+export async function handleExerciseVideo(
+  req: NextRequest,
+  videoId: string
+): Promise<Response> {
+  const db = await getDb();
+  const video = await db.collection("exercise_videos").findOne(
+    { id: videoId },
+    { projection: { _id: 0 } }
+  );
+  if (!video) return error("Video not found", 404);
+  return json(video);
+}
