@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload } from "lucide-react";
+import { ExerciseVideoPlayer } from "@/components/ExerciseVideoPlayer";
 import { Input, FieldLabel } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { FitSelect } from "@/components/FitSelect";
@@ -25,6 +25,8 @@ export function WorkoutClient({
 }) {
   const router = useRouter();
   const [logs, setLogs] = useState(initialLogs);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Record<string, string>>({});
 
   const dayData = days.find((d) => d.day === day);
 
@@ -34,18 +36,30 @@ export function WorkoutClient({
 
   async function saveLog(exerciseId: string) {
     const entry = logs[exerciseId];
-    await api("workouts/log", {
-      method: "POST",
-      body: JSON.stringify({
-        user_id: userId,
-        exercise_id: exerciseId,
-        week,
-        day,
-        actual_weight: entry?.actual_weight ?? "0",
-        actual_reps: entry?.actual_reps ?? "0",
-      }),
-    });
-    router.refresh();
+    setSavingId(exerciseId);
+    setMessages((m) => ({ ...m, [exerciseId]: "" }));
+    try {
+      await api("workouts/log", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: userId,
+          exercise_id: exerciseId,
+          week,
+          day,
+          actual_weight: entry?.actual_weight ?? "0",
+          actual_reps: entry?.actual_reps ?? "0",
+        }),
+      });
+      setMessages((m) => ({ ...m, [exerciseId]: "Saved" }));
+      router.refresh();
+    } catch (err) {
+      setMessages((m) => ({
+        ...m,
+        [exerciseId]: err instanceof Error ? err.message : "Save failed",
+      }));
+    } finally {
+      setSavingId(null);
+    }
   }
 
   return (
@@ -97,8 +111,14 @@ export function WorkoutClient({
           {dayData?.exercises.map((ex) => (
             <div key={ex.id} className="p-6">
               <div className="flex gap-5">
-                <div className="shrink-0 space-y-2">
-                  {ex.image_url ? (
+                <div className="shrink-0">
+                  {ex.demo_video ? (
+                    <ExerciseVideoPlayer
+                      video={ex.demo_video}
+                      title={ex.name}
+                      compact
+                    />
+                  ) : ex.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={ex.image_url}
@@ -108,13 +128,6 @@ export function WorkoutClient({
                   ) : (
                     <div className="h-28 w-36 bg-zinc-900" />
                   )}
-                  <button
-                    type="button"
-                    className="flex h-8 w-8 items-center justify-center border border-zinc-700 text-zinc-400 hover:text-white"
-                    aria-label="Upload form video"
-                  >
-                    <Upload className="h-4 w-4" />
-                  </button>
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -166,9 +179,21 @@ export function WorkoutClient({
                     type="button"
                     className="mt-5 h-12 w-full text-sm"
                     onClick={() => saveLog(ex.id)}
+                    disabled={savingId === ex.id}
                   >
-                    Save
+                    {savingId === ex.id ? "Saving…" : "Save"}
                   </Button>
+                  {messages[ex.id] && (
+                    <p
+                      className={`mt-2 text-xs ${
+                        messages[ex.id] === "Saved"
+                          ? "text-[#a3e635]"
+                          : "text-red-400"
+                      }`}
+                    >
+                      {messages[ex.id]}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

@@ -1,6 +1,48 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Save } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { FieldLabel } from "@/components/ui/Input";
+import { api } from "@/lib/api-client";
 import type { FormCheckSubmission } from "@/lib/data";
 
-export function FormCheckQueue({ submissions }: { submissions: FormCheckSubmission[] }) {
+export function FormCheckQueue({
+  submissions,
+}: {
+  submissions: FormCheckSubmission[];
+}) {
+  const router = useRouter();
+  const [feedback, setFeedback] = useState<Record<string, string>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Record<string, string>>({});
+
+  async function saveFeedback(id: string) {
+    const text = feedback[id]?.trim();
+    if (!text) {
+      setMessages((m) => ({ ...m, [id]: "Please enter feedback before saving" }));
+      return;
+    }
+    setSavingId(id);
+    setMessages((m) => ({ ...m, [id]: "" }));
+    try {
+      await api(`admin/form-checks/${id}/feedback`, {
+        method: "POST",
+        body: JSON.stringify({ feedback_text: text }),
+      });
+      setMessages((m) => ({ ...m, [id]: "Feedback saved" }));
+      router.refresh();
+    } catch (err) {
+      setMessages((m) => ({
+        ...m,
+        [id]: err instanceof Error ? err.message : "Save failed",
+      }));
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -37,6 +79,40 @@ export function FormCheckQueue({ submissions }: { submissions: FormCheckSubmissi
                     className="mt-4 max-h-64 w-full max-w-md"
                   />
                 )}
+                <div className="mt-4 max-w-xl space-y-3">
+                  <div>
+                    <FieldLabel>Coach Feedback</FieldLabel>
+                    <textarea
+                      value={feedback[s.id] ?? ""}
+                      onChange={(e) =>
+                        setFeedback((f) => ({ ...f, [s.id]: e.target.value }))
+                      }
+                      rows={3}
+                      placeholder="Write feedback for this form check..."
+                      className="w-full resize-none border border-zinc-700 bg-black px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    className="h-10 gap-2 bg-[#a3e635] text-xs text-black"
+                    onClick={() => saveFeedback(s.id)}
+                    disabled={savingId === s.id}
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    {savingId === s.id ? "Saving…" : "Save Feedback"}
+                  </Button>
+                  {messages[s.id] && (
+                    <p
+                      className={`text-sm ${
+                        messages[s.id] === "Feedback saved"
+                          ? "text-[#a3e635]"
+                          : "text-red-400"
+                      }`}
+                    >
+                      {messages[s.id]}
+                    </p>
+                  )}
+                </div>
               </div>
             ))}
           </div>

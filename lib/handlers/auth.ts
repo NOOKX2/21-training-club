@@ -7,6 +7,8 @@ import {
   getCurrentUser,
   getAdminUser,
 } from "../auth";
+import { checkUserAccess } from "../access";
+import { isAdminRole } from "../routes";
 import {
   json,
   error,
@@ -96,6 +98,14 @@ export async function handleAuth(
       }
 
       await db.collection("login_attempts").deleteOne({ identifier });
+
+      if (!isAdminRole(String(user.role ?? "user"))) {
+        const access = checkUserAccess(user as Record<string, unknown>);
+        if (!access.active) {
+          return error(access.message ?? "Account access denied", 403);
+        }
+      }
+
       const userId = String(user._id);
       return withAuthCookies(
         {

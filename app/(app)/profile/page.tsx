@@ -13,6 +13,7 @@ export default async function ProfilePage() {
         email: user.email,
         tier_level: user.tier_level,
         created_at: user.created_at,
+        access_expires_at: user.access_expires_at,
       }}
       initialRecords={records}
     />

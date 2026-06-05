@@ -6,8 +6,8 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, FieldLabel } from "@/components/ui/Input";
 import { api } from "@/lib/api-client";
-import type { Gender } from "@/lib/access";
 import type { AdminClient } from "@/lib/data";
+import { normalizeDateOnly, type Gender } from "@/lib/access";
 
 const TIER_OPTIONS = [
   { value: "Tier 1", label: "Tier 1 - The Engine" },
@@ -21,61 +21,60 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: "prefer_not_to_say", label: "Prefer not to say" },
 ];
 
-function todayDateInput(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function generatePassword() {
-  return Math.random().toString(36).slice(2, 10) + "A1!";
-}
-
-export function CreateClientModal({
+export function EditClientModal({
+  client,
   onClose,
-  onCreated,
+  onSaved,
 }: {
+  client: AdminClient;
   onClose: () => void;
-  onCreated?: (client: AdminClient) => void;
+  onSaved: (client: AdminClient) => void;
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    tier_level: "Tier 1",
-    gender: "prefer_not_to_say" as Gender,
-    access_starts_at: todayDateInput(),
-    access_expires_at: "",
+    name: client.name,
+    tier_level: client.tier_level,
+    gender: (client.gender as Gender) || "prefer_not_to_say",
+    access_starts_at: normalizeDateOnly(client.access_starts_at) ?? "",
+    access_expires_at: normalizeDateOnly(client.access_expires_at) ?? "",
   });
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setMessage("");
     setLoading(true);
     try {
-      const res = await api<AdminClient & { message?: string }>("admin/create-client", {
-        method: "POST",
+      const res = await api<{
+        message: string;
+        client: AdminClient | null;
+      }>(`admin/clients/${client.id}`, {
+        method: "PUT",
         body: JSON.stringify({
-          ...form,
+          name: form.name.trim(),
+          tier_level: form.tier_level,
+          gender: form.gender,
+          access_starts_at: form.access_starts_at || null,
           access_expires_at: form.access_expires_at || null,
         }),
       });
-      onCreated?.({
-        id: res.id,
-        email: res.email,
-        name: res.name,
-        tier_level: res.tier_level,
-        gender: res.gender ?? form.gender,
-        access_starts_at: res.access_starts_at ?? form.access_starts_at,
-        access_expires_at:
-          res.access_expires_at ?? (form.access_expires_at || null),
-        created_at: new Date().toISOString(),
-      });
+      const updated: AdminClient = res.client ?? {
+        ...client,
+        name: form.name.trim(),
+        tier_level: form.tier_level,
+        gender: form.gender,
+        access_starts_at: form.access_starts_at || null,
+        access_expires_at: form.access_expires_at || null,
+      };
+      onSaved(updated);
+      setMessage("Client updated");
       router.refresh();
-      onClose();
+      setTimeout(onClose, 400);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create client");
+      setError(err instanceof Error ? err.message : "Update failed");
     } finally {
       setLoading(false);
     }
@@ -85,9 +84,12 @@ export function CreateClientModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto border border-zinc-700 bg-zinc-950 p-6">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-bold uppercase tracking-wide text-white">
-            Create New Client
-          </h2>
+          <div>
+            <h2 className="text-lg font-bold uppercase tracking-wide text-white">
+              Edit Client
+            </h2>
+            <p className="mt-1 text-xs text-zinc-500">{client.email}</p>
+          </div>
           <button type="button" onClick={onClose} className="text-zinc-400 hover:text-white">
             <X className="h-5 w-5" />
           </button>
@@ -97,43 +99,12 @@ export function CreateClientModal({
           <div>
             <FieldLabel>Full Name</FieldLabel>
             <Input
-              placeholder="John Doe"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               required
             />
           </div>
-          <div>
-            <FieldLabel>Email Address</FieldLabel>
-            <Input
-              type="email"
-              placeholder="client@example.com"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <FieldLabel>Password</FieldLabel>
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                placeholder="Enter password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="shrink-0 text-xs"
-                onClick={() => setForm({ ...form, password: generatePassword() })}
-              >
-                Generate
-              </Button>
-            </div>
-          </div>
+
           <div>
             <FieldLabel>Gender</FieldLabel>
             <select
@@ -150,6 +121,7 @@ export function CreateClientModal({
               ))}
             </select>
           </div>
+
           <div>
             <FieldLabel>Tier Level</FieldLabel>
             <select
@@ -174,7 +146,6 @@ export function CreateClientModal({
                 onChange={(e) =>
                   setForm({ ...form, access_starts_at: e.target.value })
                 }
-                required
               />
             </div>
             <div>
@@ -191,10 +162,11 @@ export function CreateClientModal({
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
+          {message && <p className="text-sm text-[#a3e635]">{message}</p>}
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" className="flex-1" disabled={loading}>
-              Create Client
+              {loading ? "Saving…" : "Save Changes"}
             </Button>
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
               Cancel

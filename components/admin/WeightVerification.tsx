@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -8,15 +9,32 @@ import type { PendingLift } from "@/lib/data";
 
 export function WeightVerification({ lifts }: { lifts: PendingLift[] }) {
   const router = useRouter();
+  const [messages, setMessages] = useState<Record<string, string>>({});
 
   async function verify(id: string) {
-    await api(`admin/lift-progress/${id}/verify`, { method: "POST" });
-    router.refresh();
+    try {
+      await api(`admin/lift-progress/${id}/verify`, { method: "POST" });
+      setMessages((m) => ({ ...m, [id]: "Approved and saved" }));
+      router.refresh();
+    } catch (err) {
+      setMessages((m) => ({
+        ...m,
+        [id]: err instanceof Error ? err.message : "Save failed",
+      }));
+    }
   }
 
   async function reject(id: string) {
-    await api(`admin/lift-progress/${id}/reject`, { method: "POST" });
-    router.refresh();
+    try {
+      await api(`admin/lift-progress/${id}/reject`, { method: "POST" });
+      setMessages((m) => ({ ...m, [id]: "Rejected and saved" }));
+      router.refresh();
+    } catch (err) {
+      setMessages((m) => ({
+        ...m,
+        [id]: err instanceof Error ? err.message : "Save failed",
+      }));
+    }
   }
 
   return (
@@ -57,7 +75,19 @@ export function WeightVerification({ lifts }: { lifts: PendingLift[] }) {
                     <span className="text-[#a3e635]">{lift.weight_lifted} kg</span>
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col items-end gap-2">
+                  {messages[lift.id] && (
+                    <p
+                      className={`text-xs ${
+                        messages[lift.id].includes("saved")
+                          ? "text-[#a3e635]"
+                          : "text-red-400"
+                      }`}
+                    >
+                      {messages[lift.id]}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
                   <Button
                     type="button"
                     className="h-9 gap-1 bg-[#a3e635] text-xs text-black"
@@ -75,6 +105,7 @@ export function WeightVerification({ lifts }: { lifts: PendingLift[] }) {
                     <X className="h-3.5 w-3.5" />
                     Reject
                   </Button>
+                  </div>
                 </div>
               </div>
             ))}

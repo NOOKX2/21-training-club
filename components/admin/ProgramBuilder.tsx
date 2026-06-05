@@ -29,6 +29,8 @@ export function ProgramBuilder({
       : [{ id: uuidv4(), name: "", target_sets: 3, target_reps: "8-12", demo_video_id: null }]
   );
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   function navigate(nextTrack: string, nextDay: number) {
     router.push(
@@ -53,6 +55,8 @@ export function ProgramBuilder({
 
   async function save() {
     setSaving(true);
+    setMessage("");
+    setError("");
     try {
       await api("admin/programs", {
         method: "POST",
@@ -63,7 +67,10 @@ export function ProgramBuilder({
           id: program.id,
         }),
       });
+      setMessage("Program saved to database");
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -165,11 +172,13 @@ export function ProgramBuilder({
                 <FieldLabel>Demo Video</FieldLabel>
                 <select
                   value={ex.demo_video_id ?? ""}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const video = videos.find((v) => v.id === e.target.value);
                     updateExercise(ex.id, {
                       demo_video_id: e.target.value || null,
-                    })
-                  }
+                      name: video?.name ?? ex.name,
+                    });
+                  }}
                   className="w-full border border-zinc-700 bg-black px-3 py-3 text-sm text-white"
                 >
                   <option value="">Select video</option>
@@ -190,6 +199,9 @@ export function ProgramBuilder({
             </div>
           ))}
         </div>
+
+        {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+        {message && <p className="mt-4 text-sm text-[#a3e635]">{message}</p>}
 
         <Button
           type="button"

@@ -1,9 +1,16 @@
+import { Readable } from "stream";
 import { v4 as uuidv4 } from "uuid";
 import { ObjectId } from "mongodb";
 import { NextRequest } from "next/server";
 import { getDb } from "../db";
 import { getAdminUser, hashPassword } from "../auth";
 import { json, error, parseBody, handleAuthError } from "../api-helpers";
+import {
+  openExerciseVideoStream,
+  saveExerciseVideoToGridFS,
+  streamFromBase64DataUrl,
+} from "../exercise-video-storage";
+import { normalizeDateOnly, validateAccessDates, type Gender } from "../access";
 
 export async function handleAdmin(
   req: NextRequest,
@@ -41,8 +48,72 @@ export async function handleAdmin(
           name: c.name,
           role: c.role,
           tier_level: c.tier_level,
+          gender: c.gender ?? null,
+          access_starts_at: c.access_starts_at ?? null,
+          access_expires_at: c.access_expires_at ?? null,
         }))
       );
+    }
+
+    if (resource === "clients" && segments[2] && req.method === "PUT") {
+      const body = await parseBody<{
+        gender?: Gender | null;
+        access_starts_at?: string | null;
+        access_expires_at?: string | null;
+        tier_level?: string;
+        name?: string;
+      }>(req);
+      const dateError = validateAccessDates(
+        body.access_starts_at,
+        body.access_expires_at
+      );
+      if (dateError) return error(dateError, 400);
+
+      const update: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (body.name?.trim()) update.name = body.name.trim();
+      if (body.tier_level) update.tier_level = body.tier_level;
+      if (body.gender !== undefined) update.gender = body.gender;
+      if (body.access_starts_at !== undefined) {
+        update.access_starts_at = body.access_starts_at || null;
+      }
+      if (body.access_expires_at !== undefined) {
+        update.access_expires_at = body.access_expires_at || null;
+      }
+
+      const result = await db.collection("users").updateOne(
+        { _id: new ObjectId(segments[2]), role: "user" },
+        { $set: update }
+      );
+      if (result.matchedCount === 0) return error("Client not found", 404);
+
+      const updated = await db.collection("users").findOne({
+        _id: new ObjectId(segments[2]),
+        role: "user",
+      });
+      return json({
+        message: "Client updated successfully",
+        client: updated
+          ? {
+              id: String(updated._id),
+              email: updated.email,
+              name: updated.name,
+              tier_level: updated.tier_level,
+              gender: updated.gender ?? null,
+              access_starts_at: normalizeDateOnly(
+                updated.access_starts_at ? String(updated.access_starts_at) : null
+              ),
+              access_expires_at: normalizeDateOnly(
+                updated.access_expires_at ? String(updated.access_expires_at) : null
+              ),
+              created_at: updated.created_at ? String(updated.created_at) : undefined,
+              assigned_meal_plan: updated.assigned_meal_plan
+                ? String(updated.assigned_meal_plan)
+                : undefined,
+            }
+          : null,
+      });
     }
 
     if (resource === "create-client" && req.method === "POST") {
@@ -51,16 +122,30 @@ export async function handleAdmin(
         email: string;
         password: string;
         tier_level?: string;
+        gender?: Gender;
+        access_starts_at?: string;
+        access_expires_at?: string | null;
       }>(req);
+      const dateError = validateAccessDates(
+        body.access_starts_at,
+        body.access_expires_at
+      );
+      if (dateError) return error(dateError, 400);
+
       const email = body.email.toLowerCase();
       const existing = await db.collection("users").findOne({ email });
       if (existing) return error("Email already exists", 400);
+
+      const today = new Date().toISOString().slice(0, 10);
       const result = await db.collection("users").insertOne({
         email,
         name: body.name,
         password_hash: hashPassword(body.password),
         role: "user",
         tier_level: body.tier_level ?? "Tier 1",
+        gender: body.gender ?? null,
+        access_starts_at: body.access_starts_at || today,
+        access_expires_at: body.access_expires_at || null,
         created_at: new Date().toISOString(),
       });
       return json({
@@ -69,6 +154,9 @@ export async function handleAdmin(
         name: body.name,
         password: body.password,
         tier_level: body.tier_level ?? "Tier 1",
+        gender: body.gender ?? null,
+        access_starts_at: body.access_starts_at || today,
+        access_expires_at: body.access_expires_at || null,
         message: "Client created successfully",
       });
     }
@@ -80,12 +168,23 @@ export async function handleAdmin(
         exercises: unknown[];
         id?: string;
       }>(req);
-      await db.collection("program_templates").updateOne(
+      if (!program.track || !program.day) {
+        return error("Track and day are required", 400);
+      }
+      const doc = {
+        track: program.track,
+        day: program.day,
+        exercises: program.exercises ?? [],
+        id: program.id ?? uuidv4(),
+        updated_at: new Date().toISOString(),
+      };
+      const result = await db.collection("program_templates").updateOne(
         { track: program.track, day: program.day },
-        { $set: { ...program, id: program.id ?? uuidv4() } },
+        { $set: doc },
         { upsert: true }
       );
-      return json({ message: "Program saved successfully" });
+      if (!result.acknowledged) return error("Failed to save program", 500);
+      return json({ message: "Program saved successfully", program: doc });
     }
 
     if (resource === "programs" && segments[2] && segments[3] && req.method === "GET") {
@@ -99,20 +198,85 @@ export async function handleAdmin(
       return json(program);
     }
 
+    if (
+      resource === "exercise-videos" &&
+      segments[3] === "stream" &&
+      req.method === "GET"
+    ) {
+      const videoId = segments[2];
+      if (!videoId) return error("Video id required", 400);
+      const video = await db.collection("exercise_videos").findOne({ id: videoId });
+      if (!video) return error("Video not found", 404);
+
+      const fileId = (video.video_file_id as string | undefined) ?? videoId;
+      const gridStream = await openExerciseVideoStream(db, fileId);
+      if (gridStream) {
+        return new Response(Readable.toWeb(gridStream.stream as Readable) as ReadableStream, {
+          headers: { "Content-Type": gridStream.contentType },
+        });
+      }
+
+      if (typeof video.video_base64 === "string" && video.video_base64) {
+        const inline = streamFromBase64DataUrl(video.video_base64);
+        if (inline) {
+          return new Response(new Uint8Array(inline.body), {
+            headers: { "Content-Type": inline.contentType },
+          });
+        }
+      }
+
+      return error("Video file not found", 404);
+    }
+
     if (resource === "exercise-videos" && req.method === "GET") {
-      const videos = await db.collection("exercise_videos").find({}).project({ _id: 0 }).toArray();
+      const videos = await db
+        .collection("exercise_videos")
+        .find({})
+        .project({ _id: 0, video_base64: 0 })
+        .toArray();
       return json(videos);
     }
 
     if (resource === "exercise-videos" && req.method === "POST") {
-      const video = await parseBody<Record<string, unknown>>(req);
-      const doc = {
-        id: uuidv4(),
-        ...video,
+      const video = await parseBody<{
+        name: string;
+        video_base64?: string;
+        video_url?: string;
+        tags?: string[];
+      }>(req);
+      if (!video.name?.trim()) return error("Exercise title is required", 400);
+      if (!video.video_base64 && !video.video_url) {
+        return error("Video file is required", 400);
+      }
+
+      const id = uuidv4();
+      const doc: Record<string, unknown> = {
+        id,
+        name: video.name.trim(),
+        video_url: video.video_url ?? "",
+        tags: video.tags ?? [],
         created_at: new Date().toISOString(),
       };
+
+      if (video.video_base64) {
+        try {
+          const { contentType, size } = await saveExerciseVideoToGridFS(
+            db,
+            id,
+            video.video_base64
+          );
+          doc.video_file_id = id;
+          doc.content_type = contentType;
+          doc.file_size = size;
+        } catch (e) {
+          const message = e instanceof Error ? e.message : "Upload failed";
+          return error(message, 400);
+        }
+      }
+
       await db.collection("exercise_videos").insertOne(doc);
-      return json(doc);
+      const { video_base64: _, ...safe } = doc;
+      return json(safe);
     }
 
     if (resource === "form-checks" && req.method === "GET" && segments.length === 2) {
@@ -136,16 +300,18 @@ export async function handleAdmin(
       const body = await parseBody<{ feedback_text?: string; feedback_audio_base64?: string }>(req);
       const submission = await db.collection("form_checks").findOne({ id: segments[2] });
       if (!submission) return error("Submission not found", 404);
-      await db.collection("form_checks").updateOne(
+      const result = await db.collection("form_checks").updateOne(
         { id: segments[2] },
         {
           $set: {
             feedback_text: body.feedback_text ?? feedback_text,
             feedback_audio_base64: body.feedback_audio_base64 ?? feedback_audio_base64,
             status: "reviewed",
+            reviewed_at: new Date().toISOString(),
           },
         }
       );
+      if (result.matchedCount === 0) return error("Submission not found", 404);
       await db.collection("notifications").insertOne({
         id: uuidv4(),
         user_id: submission.user_id,
@@ -161,23 +327,117 @@ export async function handleAdmin(
     if (resource === "custom-programs" && req.method === "POST") {
       const body = await parseBody<{
         client_email: string;
+        week: number;
         day: number;
         exercises: unknown[];
       }>(req);
-      await db.collection("custom_programs").updateOne(
-        { client_email: body.client_email, day: body.day },
-        { $set: { client_email: body.client_email, day: body.day, exercises: body.exercises } },
+      const week = body.week ?? 1;
+      const result = await db.collection("custom_programs").updateOne(
+        { user_email: body.client_email, week, day: body.day },
+        {
+          $set: {
+            client_email: body.client_email,
+            user_email: body.client_email,
+            week,
+            day: body.day,
+            exercises: body.exercises,
+            updated_at: new Date().toISOString(),
+          },
+        },
         { upsert: true }
       );
+      if (!result.acknowledged) return error("Failed to save custom program", 500);
       return json({ message: "Custom program saved successfully" });
     }
 
-    if (resource === "custom-programs" && segments[2] && segments[3] && req.method === "GET") {
+    if (resource === "nutrition-limits" && req.method === "POST") {
+      const body = await parseBody<{
+        client_email: string;
+        calories?: number;
+        protein?: number;
+        carbs?: number;
+        fat?: number;
+      }>(req);
+      if (!body.client_email) return error("Client email required", 400);
+
+      const limits: Record<string, number> = {};
+      for (const key of ["protein", "carbs", "fat"] as const) {
+        const value = body[key];
+        if (value == null) continue;
+        const num = Number(value);
+        if (!Number.isFinite(num) || num < 0) {
+          return error(`Invalid ${key} limit`, 400);
+        }
+        limits[key] = num;
+      }
+
+      if (
+        limits.protein != null ||
+        limits.carbs != null ||
+        limits.fat != null
+      ) {
+        limits.calories =
+          (limits.protein ?? 0) * 4 +
+          (limits.carbs ?? 0) * 4 +
+          (limits.fat ?? 0) * 8;
+      } else if (body.calories != null) {
+        const num = Number(body.calories);
+        if (!Number.isFinite(num) || num < 0) {
+          return error("Invalid calories limit", 400);
+        }
+        limits.calories = num;
+      }
+
+      const result = await db.collection("client_nutrition_limits").updateOne(
+        { client_email: body.client_email },
+        {
+          $set: {
+            client_email: body.client_email,
+            ...limits,
+            updated_at: new Date().toISOString(),
+          },
+        },
+        { upsert: true }
+      );
+      if (!result.acknowledged) return error("Failed to save nutrition limits", 500);
+      return json({ message: "Nutrition limits saved successfully", limits });
+    }
+
+    if (
+      resource === "nutrition-limits" &&
+      segments[2] &&
+      req.method === "GET"
+    ) {
+      const email = decodeURIComponent(segments[2]);
+      const doc = await db.collection("client_nutrition_limits").findOne(
+        { client_email: email },
+        { projection: { _id: 0, calories: 1, protein: 1, carbs: 1, fat: 1 } }
+      );
+      return json(doc ?? {});
+    }
+
+    if (
+      resource === "custom-programs" &&
+      segments[2] &&
+      segments[3] &&
+      segments[4] &&
+      req.method === "GET"
+    ) {
+      const email = decodeURIComponent(segments[2]);
+      const week = parseInt(segments[3], 10);
+      const day = parseInt(segments[4], 10);
       const program = await db.collection("custom_programs").findOne(
-        { client_email: decodeURIComponent(segments[2]), day: parseInt(segments[3], 10) },
+        {
+          $or: [
+            { client_email: email, week, day },
+            { user_email: email, week, day },
+          ],
+        },
         { projection: { _id: 0 } }
       );
-      return json(program ?? { client_email: segments[2], day: parseInt(segments[3], 10), exercises: [] });
+      return json(
+        program ?? { client_email: email, user_email: email, week, day, exercises: [] }
+      );
     }
 
     if (resource === "custom-program" && req.method === "POST") {

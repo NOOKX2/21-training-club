@@ -1,3 +1,40 @@
+import {
+  expiryCountdownLabel,
+  genderLabel,
+  getAccessStatus,
+  normalizeDateOnly,
+} from "@/lib/access";
+
+export { expiryCountdownLabel };
+
+export function formatDateOnly(value?: string | null): string {
+  const normalized = normalizeDateOnly(value);
+  if (!normalized) return "—";
+  const d = new Date(`${normalized}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return "—";
+  const day = d.getUTCDate();
+  const month = d.getUTCMonth() + 1;
+  const year = d.getUTCFullYear() + 543;
+  return `${day}/${month}/${year}`;
+}
+
+export function accessStatusLabel(client: {
+  role?: string;
+  access_starts_at?: string | null;
+  access_expires_at?: string | null;
+}): { label: string; className: string } {
+  const status = getAccessStatus(client);
+  if (status === "active") {
+    return { label: "Active", className: "text-[#a3e635]" };
+  }
+  if (status === "expired") {
+    return { label: "Expired", className: "text-red-400" };
+  }
+  return { label: "Not started", className: "text-amber-400" };
+}
+
+export { genderLabel };
+
 export function formatJoinedDate(iso?: string): string {
   if (!iso) return "—";
   const d = new Date(iso);

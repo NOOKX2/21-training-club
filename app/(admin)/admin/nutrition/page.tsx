@@ -8,10 +8,11 @@ export default async function AdminNutritionPage({
 }) {
   const params = await searchParams;
   const clients = await getAdminClients();
-  const selectedClientId =
-    params.client && clients.some((c) => c.id === params.client)
-      ? params.client
-      : (clients[0]?.id ?? "");
+  const clientParam = params.client ? decodeURIComponent(params.client) : "";
+  const selectedClient = clientParam
+    ? clients.find((c) => c.id === clientParam || c.email === clientParam)
+    : undefined;
+  const selectedClientId = selectedClient?.id ?? "";
   const date = params.date ?? new Date().toISOString().slice(0, 10);
   const meals = selectedClientId
     ? await getNutritionMealsForUser(selectedClientId, date)

@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { getDb } from "./db";
+import { checkUserAccess } from "./access";
 import { isAdminRole, normalizeRole } from "./routes";
 
 const JWT_ALGORITHM = "HS256";
@@ -59,6 +60,9 @@ export type AuthUser = {
   profile_image?: string;
   assigned_meal_plan?: string;
   created_at?: string;
+  gender?: string;
+  access_starts_at?: string;
+  access_expires_at?: string | null;
 };
 
 function sanitizeUser(doc: Record<string, unknown>): AuthUser {
@@ -76,8 +80,11 @@ function sanitizeUser(doc: Record<string, unknown>): AuthUser {
 }
 
 export async function getTokenFromRequest(req: NextRequest): Promise<string | null> {
-  const cookieStore = await cookies();
-  let token = cookieStore.get("access_token")?.value ?? null;
+  let token = req.cookies.get("access_token")?.value ?? null;
+  if (!token) {
+    const cookieStore = await cookies();
+    token = cookieStore.get("access_token")?.value ?? null;
+  }
   if (!token) {
     const auth = req.headers.get("Authorization");
     if (auth?.startsWith("Bearer ")) token = auth.slice(7);
@@ -100,6 +107,10 @@ export async function getCurrentUser(req: NextRequest): Promise<AuthUser> {
       .collection("users")
       .findOne({ _id: new ObjectId(payload.sub as string) });
     if (!user) throw new AuthError("User not found", 401);
+    const access = checkUserAccess(user as Record<string, unknown>);
+    if (!access.active) {
+      throw new AuthError(access.message ?? "Account access denied", 403);
+    }
     return sanitizeUser(user as Record<string, unknown>);
   } catch (e) {
     if (e instanceof AuthError) throw e;

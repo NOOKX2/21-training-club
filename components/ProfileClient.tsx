@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Award, Pencil, User } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +15,30 @@ const LIFT_EXERCISES = [
   "Long Run",
 ] as const;
 
+function formatLiftDate(iso?: string) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatExpirationDate(iso?: string | null) {
+  if (!iso) return "—";
+  const d = new Date(`${iso}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function recordFor(records: LiftRecord[], exercise: string) {
+  return records.find((r) => r.exercise_name === exercise);
+}
+
 export function ProfileClient({
   user,
   initialRecords,
@@ -25,6 +49,7 @@ export function ProfileClient({
     email: string;
     tier_level: string;
     created_at?: string;
+    access_expires_at?: string | null;
   };
   initialRecords: LiftRecord[];
 }) {
@@ -32,41 +57,53 @@ export function ProfileClient({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name);
   const [lifts, setLifts] = useState<Record<string, string>>({});
+  const [records, setRecords] = useState(initialRecords);
   const [message, setMessage] = useState("");
 
-  const records = initialRecords;
+  useEffect(() => {
+    setRecords(initialRecords);
+  }, [initialRecords]);
 
   const memberSince =
     user.created_at?.slice(0, 4) ?? new Date().getFullYear().toString();
+  const expirationDate = formatExpirationDate(user.access_expires_at);
 
   async function saveProfile() {
-    await api("update-profile", {
-      method: "POST",
-      body: JSON.stringify({ name }),
-    });
-    setMessage("Profile updated");
-    setEditing(false);
-    router.refresh();
+    try {
+      await api("update-profile", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      });
+      setMessage("Profile saved");
+      setEditing(false);
+      router.refresh();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Save failed");
+    }
   }
 
   async function submitLift(exerciseName: string) {
     const w = lifts[exerciseName];
     if (!w) return;
-    await api("lift-progress", {
-      method: "POST",
-      body: JSON.stringify({
-        user_id: user.id,
-        exercise_name: exerciseName,
-        weight_lifted: Number(w),
-      }),
-    });
-    setMessage(`Submitted ${exerciseName} for coach review`);
-    setLifts((prev) => ({ ...prev, [exerciseName]: "" }));
-    router.refresh();
-  }
-
-  function statusFor(exercise: string) {
-    return records.find((r) => r.exercise_name === exercise)?.verification_status;
+    try {
+      const saved = await api<LiftRecord>("lift-progress", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: user.id,
+          exercise_name: exerciseName,
+          weight_lifted: Number(w),
+        }),
+      });
+      setRecords((prev) => {
+        const rest = prev.filter((r) => r.exercise_name !== exerciseName);
+        return [...rest, saved];
+      });
+      setMessage(`Submitted ${exerciseName} for coach review`);
+      setLifts((prev) => ({ ...prev, [exerciseName]: "" }));
+      router.refresh();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Submit failed");
+    }
   }
 
   return (
@@ -122,8 +159,9 @@ export function ProfileClient({
         </h2>
         <div className="mt-6 space-y-6">
           {LIFT_EXERCISES.map((exercise) => {
-            const status = statusFor(exercise);
-            const verified = status === "Verified";
+            const record = recordFor(records, exercise);
+            const verified = record?.verification_status === "Verified";
+            const submittedDate = formatLiftDate(record?.submitted_at);
             return (
               <div key={exercise}>
                 <p className="mb-2 text-sm font-bold uppercase text-white">
@@ -153,8 +191,15 @@ export function ProfileClient({
                     Submit
                   </Button>
                 </div>
-                {status && (
-                  <p className="mt-1 text-xs text-zinc-500">{status}</p>
+                {record && submittedDate && (
+                  <p className="mt-2 text-xs text-zinc-400">
+                    Last submitted {submittedDate} · {record.weight_lifted} kg
+                    {verified ? (
+                      <span className="text-[#a3e635]"> · Verified</span>
+                    ) : (
+                      <span className="text-zinc-500"> · Pending review</span>
+                    )}
+                  </p>
                 )}
               </div>
             );
@@ -167,9 +212,13 @@ export function ProfileClient({
           <FieldLabel>Current Tier</FieldLabel>
           <p className="mt-2 text-3xl font-bold text-white">{user.tier_level}</p>
         </div>
-        <div className="flex-1 p-6">
+        <div className="flex-1 border-r border-zinc-800 p-6">
           <FieldLabel>Member Since</FieldLabel>
           <p className="mt-2 text-3xl font-bold text-white">{memberSince}</p>
+        </div>
+        <div className="flex-1 p-6">
+          <FieldLabel>Expiration Date</FieldLabel>
+          <p className="mt-2 text-3xl font-bold text-white">{expirationDate}</p>
         </div>
       </section>
     </div>

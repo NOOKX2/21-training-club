@@ -106,12 +106,14 @@ export function ClientResults({
             </p>
           ) : (
             <div className="divide-y divide-zinc-800 border border-zinc-800">
-              {logs.map((log) => (
+              {logs.map((log, index) => (
                 <div
-                  key={log.exercise_id}
+                  key={log.id ?? `${log.exercise_id}-${index}`}
                   className="flex items-center justify-between px-5 py-3 text-sm"
                 >
-                  <span className="text-zinc-400">Exercise {log.exercise_id.slice(0, 8)}…</span>
+                  <span className="font-medium uppercase text-white">
+                    {log.exercise_name ?? "Unknown exercise"}
+                  </span>
                   <span className="text-white">
                     {log.actual_weight} kg × {log.actual_reps} reps
                   </span>

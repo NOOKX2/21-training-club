@@ -76,7 +76,7 @@ export async function handleApi(
     case "lift-progress":
       return handleLiftProgress(req, ["lift-progress", ...rest]);
     case "exercise-video":
-      if (rest[0]) return handleExerciseVideo(req, rest[0]);
+      if (rest[0]) return handleExerciseVideo(req, ["exercise-video", ...rest]);
       break;
   }
 

@@ -2,37 +2,72 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Video } from "lucide-react";
+import { Tag, Upload, Video } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, FieldLabel } from "@/components/ui/Input";
+import { ExerciseVideoPlayer } from "@/components/ExerciseVideoPlayer";
 import { api } from "@/lib/api-client";
 import type { ExerciseVideo } from "@/lib/data";
+import { MAX_VIDEO_MB } from "@/lib/exercise-video-constants";
 
 export function ExerciseVideoLibrary({ videos }: { videos: ExerciseVideo[] }) {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
+  const [tags, setTags] = useState("");
+  const [videoFile, setVideoFile] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
 
-  async function addVideo(e: React.FormEvent) {
+  function onVideoSelect(f: File | null) {
+    if (!f) return;
+    setError("");
+    if (f.size > MAX_VIDEO_MB * 1024 * 1024) {
+      setError(`Video must be under ${MAX_VIDEO_MB}MB`);
+      return;
+    }
+    setFileName(f.name);
+    const reader = new FileReader();
+    reader.onload = () => setVideoFile(reader.result as string);
+    reader.readAsDataURL(f);
+  }
+
+  async function uploadVideo(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
+    if (!videoFile) {
+      setError("Please choose a video file");
+      return;
+    }
+    setError("");
     setAdding(true);
     try {
+      const tagList = tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
       await api("admin/exercise-videos", {
         method: "POST",
-        body: JSON.stringify({ name, video_url: videoUrl }),
+        body: JSON.stringify({
+          name: name.trim(),
+          video_base64: videoFile,
+          tags: tagList,
+        }),
       });
       setName("");
-      setVideoUrl("");
+      setTags("");
+      setVideoFile("");
+      setFileName("");
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setAdding(false);
     }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold uppercase tracking-wide text-white">
           <Video className="h-6 w-6 text-[#a3e635]" />
@@ -43,59 +78,101 @@ export function ExerciseVideoLibrary({ videos }: { videos: ExerciseVideo[] }) {
         </p>
       </div>
 
-      <form
-        onSubmit={addVideo}
-        className="grid gap-4 border border-zinc-800 p-6 sm:grid-cols-2"
-      >
-        <div>
-          <FieldLabel>Video Name</FieldLabel>
-          <Input
-            placeholder="Barbell Squat Demo"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <FieldLabel>Video URL</FieldLabel>
-          <Input
-            placeholder="https://..."
-            value={videoUrl}
-            onChange={(e) => setVideoUrl(e.target.value)}
-          />
-        </div>
-        <Button
-          type="submit"
-          className="gap-2 bg-[#a3e635] text-black sm:col-span-2"
-          disabled={adding}
-        >
-          <Plus className="h-4 w-4" />
-          Add Video
-        </Button>
-      </form>
-
-      <div className="border border-zinc-800">
-        {videos.length === 0 ? (
-          <p className="p-8 text-center text-sm text-zinc-500">
-            No exercise videos yet
-          </p>
-        ) : (
-          <div className="divide-y divide-zinc-800">
-            {videos.map((v) => (
-              <div key={v.id} className="flex items-center justify-between px-6 py-4">
-                <div>
-                  <p className="font-medium text-white">{v.name}</p>
-                  {v.video_url && (
-                    <p className="mt-0.5 truncate text-xs text-zinc-500">
-                      {v.video_url}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
+      <section className="border border-zinc-800 p-6">
+        <h2 className="mb-6 text-sm font-bold uppercase tracking-widest text-white">
+          Upload New Demo
+        </h2>
+        <form onSubmit={uploadVideo} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <FieldLabel>Exercise Title</FieldLabel>
+              <Input
+                placeholder="e.g., Barbell Squat Demo"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <FieldLabel>Tags (comma-separated)</FieldLabel>
+              <Input
+                placeholder="Legs, Push, Cardio"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+              />
+            </div>
           </div>
-        )}
-      </div>
+
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-0 flex-1">
+              <FieldLabel>Video File</FieldLabel>
+              <label className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 border border-zinc-700 bg-black text-sm text-zinc-400 transition-colors hover:border-zinc-500 hover:text-white">
+                <Upload className="h-4 w-4" />
+                {fileName || "Choose Video File"}
+                <input
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={(e) => onVideoSelect(e.target.files?.[0] ?? null)}
+                />
+              </label>
+            </div>
+            <Button
+              type="submit"
+              className="h-12 gap-2 bg-[#a3e635] px-8 text-black hover:bg-[#bef264]"
+              disabled={adding || !videoFile}
+            >
+              <Upload className="h-4 w-4" />
+              {adding ? "Uploading…" : "Upload"}
+            </Button>
+          </div>
+
+          {error && <p className="text-sm text-red-400">{error}</p>}
+        </form>
+      </section>
+
+      {videos.length === 0 ? (
+        <p className="border border-zinc-800 p-12 text-center text-sm text-zinc-500">
+          No exercise videos yet. Upload your first demo above.
+        </p>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {videos.map((v) => (
+            <article
+              key={v.id}
+              className="overflow-hidden border border-zinc-800 bg-zinc-950"
+            >
+              <ExerciseVideoPlayer
+                video={{
+                  id: v.id,
+                  video_url: v.video_url,
+                  has_uploaded_file: Boolean(v.video_file_id || v.video_base64),
+                }}
+                title={v.name}
+                streamBasePath="/api/admin/exercise-videos"
+              />
+              <div className="p-4">
+                <p className="font-bold uppercase tracking-wide text-white">
+                  {v.name}
+                </p>
+                {v.tags && v.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {v.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[#a3e635]"
+                      >
+                        <Tag className="h-3 w-3" />
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -227,7 +227,7 @@ export async function handleAdminNutrition(
     await getAdminUser(req);
     const db = await getDb();
 
-    if (segments[2] === "nutrition-submissions" && req.method === "GET") {
+    if (segments[1] === "nutrition-submissions" && req.method === "GET") {
       const subs = await db
         .collection("meal_submissions_v2")
         .find({})
@@ -239,21 +239,47 @@ export async function handleAdminNutrition(
     }
 
     if (
-      segments[2] === "nutrition-submissions" &&
-      segments[3] &&
-      segments[4] === "feedback" &&
+      segments[1] === "nutrition-submissions" &&
+      segments[2] &&
+      segments[3] === "feedback" &&
       req.method === "POST"
     ) {
-      const body = await parseBody<{ feedback: string }>(req);
-      await db.collection("meal_submissions_v2").updateOne(
-        { id: segments[3] },
+      const body = await parseBody<{
+        feedback?: string;
+        rating?: number;
+        protein?: number;
+        carbs?: number;
+        fat?: number;
+      }>(req);
+      const rating = Number(body.rating);
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return error("Rating must be between 1 and 5", 400);
+      }
+      const macros = {
+        protein: body.protein != null ? Number(body.protein) : null,
+        carbs: body.carbs != null ? Number(body.carbs) : null,
+        fat: body.fat != null ? Number(body.fat) : null,
+      };
+      for (const [key, value] of Object.entries(macros)) {
+        if (value != null && (Number.isNaN(value) || value < 0)) {
+          return error(`${key} must be a non-negative number`, 400);
+        }
+      }
+      const result = await db.collection("meal_submissions_v2").updateOne(
+        { id: segments[2] },
         {
           $set: {
             coach_reviewed: true,
+            coach_rating: rating,
             coach_feedback: body.feedback ?? "",
+            protein: macros.protein,
+            carbs: macros.carbs,
+            fat: macros.fat,
+            reviewed_at: new Date().toISOString(),
           },
         }
       );
+      if (result.matchedCount === 0) return error("Meal not found", 404);
       return json({ message: "Feedback saved" });
     }
   } catch (e) {

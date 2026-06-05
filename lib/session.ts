@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { ObjectId } from "mongodb";
 import { getDb } from "./db";
 import type { User } from "./api-client";
+import { checkUserAccess, normalizeDateOnly } from "./access";
 import { ADMIN_HOME, USER_HOME, isAdminRole, normalizeRole } from "./routes";
 
 async function userFromToken(token: string): Promise<User | null> {
@@ -47,7 +48,23 @@ export async function requireUser(): Promise<User> {
 export async function requireAppUser(): Promise<User> {
   const user = await requireUser();
   if (isAdminRole(user.role)) redirect(ADMIN_HOME);
-  return user;
+
+  const db = await getDb();
+  const doc = await db.collection("users").findOne({
+    _id: new ObjectId(user.id),
+  });
+  const access = checkUserAccess(
+    (doc as Record<string, unknown> | null) ?? { role: user.role }
+  );
+  if (!access.active) {
+    redirect(`/account-expired?reason=${access.status}`);
+  }
+  return {
+    ...user,
+    access_expires_at: normalizeDateOnly(
+      doc?.access_expires_at ? String(doc.access_expires_at) : null
+    ),
+  };
 }
 
 /** app/(admin) — block regular users */

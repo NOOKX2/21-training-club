@@ -45,6 +45,7 @@ export async function handleWorkouts(
     }
 
     if (segments[1] === "log" && req.method === "POST") {
+      const user = await getCurrentUser(req);
       const log = await parseBody<{
         user_id: string;
         exercise_id: string;
@@ -54,6 +55,7 @@ export async function handleWorkouts(
         actual_reps: string;
         form_video_base64?: string;
       }>(req);
+      if (log.user_id !== user.id) return error("Access denied", 403);
       const query = {
         user_id: log.user_id,
         exercise_id: log.exercise_id,
@@ -66,12 +68,8 @@ export async function handleWorkouts(
         form_video_base64: log.form_video_base64 ?? "",
         timestamp: new Date().toISOString(),
       };
-      const existing = await db.collection("workout_logs").findOne(query);
-      if (existing) {
-        await db.collection("workout_logs").updateOne(query, { $set: doc });
-      } else {
-        await db.collection("workout_logs").insertOne(doc);
-      }
+      await db.collection("workout_logs").deleteMany(query);
+      await db.collection("workout_logs").insertOne(doc);
       return json(doc);
     }
 

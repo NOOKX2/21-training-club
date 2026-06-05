@@ -1,9 +1,16 @@
+import { Readable } from "stream";
 import { v4 as uuidv4 } from "uuid";
 import { ObjectId } from "mongodb";
 import { NextRequest } from "next/server";
 import { getDb } from "../db";
 import { getCurrentUser } from "../auth";
 import { json, error, parseBody, handleAuthError } from "../api-helpers";
+import {
+  openProgressPhotoStream,
+  progressPhotoStreamPath,
+  saveProgressPhotoToGridFS,
+} from "../progress-photo-storage";
+import { streamFromBase64DataUrl, openExerciseVideoStream } from "../exercise-video-storage";
 
 export async function handleFormChecks(
   req: NextRequest,
@@ -208,6 +215,40 @@ export async function handleProgress(
   try {
     const user = await getCurrentUser(req);
 
+    if (
+      segments[1] === "photos" &&
+      segments[2] &&
+      segments[3] === "stream" &&
+      req.method === "GET"
+    ) {
+      const photoId = segments[2];
+      const db = await getDb();
+      const photo = await db.collection("progress_photos").findOne({ id: photoId });
+      if (!photo) return error("Photo not found", 404);
+      if (photo.user_id !== user.id && user.role !== "admin") {
+        return error("Access denied", 403);
+      }
+
+      const fileId = (photo.photo_file_id as string | undefined) ?? photoId;
+      const gridStream = await openProgressPhotoStream(db, fileId);
+      if (gridStream) {
+        return new Response(Readable.toWeb(gridStream.stream as Readable) as ReadableStream, {
+          headers: { "Content-Type": gridStream.contentType },
+        });
+      }
+
+      if (typeof photo.photo_base64 === "string" && photo.photo_base64) {
+        const inline = streamFromBase64DataUrl(photo.photo_base64);
+        if (inline) {
+          return new Response(new Uint8Array(inline.body), {
+            headers: { "Content-Type": inline.contentType },
+          });
+        }
+      }
+
+      return error("Photo file not found", 404);
+    }
+
     if (segments[1] === "photo" && req.method === "POST") {
       const photo = await parseBody<{
         user_id: string;
@@ -215,14 +256,23 @@ export async function handleProgress(
         weight?: number;
         notes?: string;
       }>(req);
+      if (photo.user_id !== user.id) return error("Access denied", 403);
+      if (!photo.photo_base64?.trim()) return error("Photo is required", 400);
+
+      const db = await getDb();
+      const photoId = uuidv4();
+      await saveProgressPhotoToGridFS(db, photoId, photo.photo_base64);
+
       const doc = {
-        id: uuidv4(),
-        ...photo,
+        id: photoId,
+        user_id: user.id,
+        photo_file_id: photoId,
+        weight: photo.weight != null ? Number(photo.weight) : undefined,
         notes: photo.notes ?? "",
         date: new Date().toISOString(),
       };
-      await getDb().then((db) => db.collection("progress_photos").insertOne(doc));
-      return json(doc);
+      await db.collection("progress_photos").insertOne(doc);
+      return json({ ...doc, photo_url: progressPhotoStreamPath(photoId) });
     }
 
     if (segments[1] && req.method === "GET") {
@@ -324,13 +374,49 @@ export async function handleLiftProgress(
 
 export async function handleExerciseVideo(
   req: NextRequest,
-  videoId: string
+  segments: string[]
 ): Promise<Response> {
-  const db = await getDb();
-  const video = await db.collection("exercise_videos").findOne(
-    { id: videoId },
-    { projection: { _id: 0 } }
-  );
-  if (!video) return error("Video not found", 404);
-  return json(video);
+  try {
+    const videoId = segments[1];
+    if (!videoId) return error("Video id required", 400);
+    const db = await getDb();
+
+    if (segments[2] === "stream" && req.method === "GET") {
+      await getCurrentUser(req);
+      const video = await db.collection("exercise_videos").findOne({ id: videoId });
+      if (!video) return error("Video not found", 404);
+
+      const fileId = (video.video_file_id as string | undefined) ?? videoId;
+      const gridStream = await openExerciseVideoStream(db, fileId);
+      if (gridStream) {
+        return new Response(Readable.toWeb(gridStream.stream as Readable) as ReadableStream, {
+          headers: { "Content-Type": gridStream.contentType },
+        });
+      }
+
+      if (typeof video.video_base64 === "string" && video.video_base64) {
+        const inline = streamFromBase64DataUrl(video.video_base64);
+        if (inline) {
+          return new Response(new Uint8Array(inline.body), {
+            headers: { "Content-Type": inline.contentType },
+          });
+        }
+      }
+
+      return error("Video file not found", 404);
+    }
+
+    if (req.method === "GET") {
+      await getCurrentUser(req);
+      const video = await db.collection("exercise_videos").findOne(
+        { id: videoId },
+        { projection: { _id: 0, video_base64: 0 } }
+      );
+      if (!video) return error("Video not found", 404);
+      return json(video);
+    }
+  } catch (e) {
+    return handleAuthError(e);
+  }
+  return error("Not found", 404);
 }

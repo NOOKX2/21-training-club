@@ -28,4 +28,5 @@ export type User = {
   role: string;
   tier_level: string;
   created_at?: string;
+  access_expires_at?: string | null;
 };
