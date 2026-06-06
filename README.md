@@ -34,6 +34,47 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Docker (development)
+
+Run the dev server in the background with hot reload (same as `bun run dev`):
+
+```bash
+docker compose up -d --build
+```
+
+Open [http://localhost:3000](http://localhost:3000) (or your chosen port). Code changes on your machine sync into the container automatically.
+
+Change the host port with `APP_PORT` (docker compose reads this from a `.env` file or your shell):
+
+```bash
+# option 1: .env file next to docker-compose.yml
+echo "APP_PORT=8080" >> .env
+
+# option 2: inline
+APP_PORT=8080 docker compose up -d --build
+```
+
+Then open [http://localhost:8080](http://localhost:8080).
+
+Useful commands:
+
+```bash
+docker compose logs -f app   # follow logs
+docker compose restart app   # restart container
+docker compose down          # stop
+```
+
+Requires `.env.local` (copy from `.env.example` and fill in `MONGO_URL`, `JWT_SECRET`, etc.).
+
+If hot reload feels slow on macOS, the compose file already enables file polling (`WATCHPACK_POLLING` / `CHOKIDAR_USEPOLLING`).
+
+After changing Docker setup or if you see MongoDB module errors, reset volumes and rebuild:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
 ## First run
 
 - If the database has **no users**, open `/register` to create the first admin account.

@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: ["mongodb", "mongoose", "bcryptjs", "jsonwebtoken"],
 };
 
 export default nextConfig;
