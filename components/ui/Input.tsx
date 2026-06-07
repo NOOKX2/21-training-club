@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { InputHTMLAttributes, forwardRef } from "react";
+import { clientField } from "@/lib/client-ui";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
@@ -7,7 +8,8 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       <input
         ref={ref}
         className={cn(
-          "w-full rounded-xl border border-zinc-700 bg-black px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none",
+          "w-full px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none",
+          clientField,
           className
         )}
         {...props}
@@ -17,7 +19,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
 );
 
 export const FieldLabel = ({ children }: { children: React.ReactNode }) => (
-  <span className="mb-2 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+  <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
     {children}
   </span>
 );

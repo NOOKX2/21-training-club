@@ -11,6 +11,11 @@ import {
   streamFromBase64DataUrl,
 } from "../exercise-video-storage";
 import { normalizeDateOnly, validateAccessDates, type Gender } from "../access";
+import { serializeCoach, type CoachDoc } from "../coach-utils";
+import {
+  deleteProfilePhotoFromGridFS,
+  saveProfilePhotoToGridFS,
+} from "../profile-photo-storage";
 
 export async function handleAdmin(
   req: NextRequest,
@@ -20,6 +25,43 @@ export async function handleAdmin(
     await getAdminUser(req);
     const db = await getDb();
     const resource = segments[1];
+
+    if (resource === "coaches" && segments[2] && req.method === "PUT") {
+      const body = await parseBody<{
+        name?: string;
+        profile_photo_base64?: string;
+      }>(req);
+      const coachId = segments[2];
+      const coach = await db.collection("coaches").findOne({ id: coachId });
+      if (!coach) return error("Coach not found", 404);
+
+      const update: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+
+      if (body.name?.trim()) update.name = body.name.trim();
+
+      const photoData = body.profile_photo_base64?.trim();
+      if (photoData) {
+        const oldPhotoId = coach.profile_photo_id as string | undefined;
+        const photoId = uuidv4();
+        await saveProfilePhotoToGridFS(db, photoId, photoData);
+        if (oldPhotoId) {
+          await deleteProfilePhotoFromGridFS(db, oldPhotoId).catch(() => undefined);
+        }
+        update.profile_photo_id = photoId;
+      }
+
+      if (Object.keys(update).length > 1) {
+        await db.collection("coaches").updateOne({ id: coachId }, { $set: update });
+      }
+
+      const updated = await db.collection("coaches").findOne({ id: coachId });
+      return json({
+        message: "Coach profile updated",
+        coach: updated ? serializeCoach(updated as CoachDoc) : null,
+      });
+    }
 
     if (resource === "stats" && req.method === "GET") {
       const total_clients = await db.collection("users").countDocuments({ role: "user" });
@@ -502,30 +544,67 @@ export async function handleAdmin(
       return json({ message: "Meal plan assigned" });
     }
 
+    if (resource === "weekly-reports" && req.method === "GET") {
+      const userId = req.nextUrl.searchParams.get("user_id");
+      if (!userId) return error("user_id is required", 400);
+      const reports = await db
+        .collection("weekly_reports")
+        .find({ user_id: userId })
+        .project({ _id: 0 })
+        .sort({ week_number: -1 })
+        .toArray();
+      return json(reports);
+    }
+
     if (resource === "weekly-reports" && req.method === "POST") {
-      const body = await parseBody<{ user_id: string; week_number: number; report_text: string }>(req);
-      const userDoc = await db.collection("users").findOne({ _id: new ObjectId(body.user_id) });
-      if (!userDoc || userDoc.tier_level !== "Tier 3") {
-        return error("Weekly reports are for Tier 3 clients only", 400);
+      const body = await parseBody<{
+        user_id: string;
+        week_number: number;
+        report_text: string;
+      }>(req);
+      if (!body.user_id?.trim()) return error("user_id is required", 400);
+      if (!body.week_number || body.week_number < 1) {
+        return error("Valid week_number is required", 400);
       }
-      const report = {
-        id: uuidv4(),
+      if (!body.report_text?.trim()) return error("Report text is required", 400);
+
+      const userDoc = await db.collection("users").findOne({
+        _id: new ObjectId(body.user_id),
+        role: "user",
+      });
+      if (!userDoc) return error("Client not found", 404);
+
+      const existing = await db.collection("weekly_reports").findOne({
         user_id: body.user_id,
         week_number: body.week_number,
-        report_text: body.report_text,
-        created_at: new Date().toISOString(),
+      });
+      const now = new Date().toISOString();
+      const report = {
+        id: existing?.id ? String(existing.id) : uuidv4(),
+        user_id: body.user_id,
+        week_number: body.week_number,
+        report_text: body.report_text.trim(),
+        created_at: existing?.created_at ? String(existing.created_at) : now,
+        updated_at: now,
       };
-      await db.collection("weekly_reports").insertOne(report);
+
+      await db.collection("weekly_reports").replaceOne(
+        { user_id: body.user_id, week_number: body.week_number },
+        report,
+        { upsert: true }
+      );
+
       await db.collection("notifications").insertOne({
         id: uuidv4(),
         user_id: body.user_id,
         type: "weekly_report",
-        title: "New Weekly Report",
-        message: `Your coach sent you Week ${body.week_number} report`,
+        title: "Report from Coach",
+        message: `Your coach posted Week ${body.week_number} feedback`,
         read: false,
-        created_at: new Date().toISOString(),
+        created_at: now,
       });
-      return json(report);
+
+      return json({ message: "Weekly report saved", report });
     }
 
     if (resource === "tier3-clients" && req.method === "GET") {

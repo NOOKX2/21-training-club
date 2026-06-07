@@ -4,16 +4,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
-  Apple,
-  Calendar,
+  Activity,
   Crown,
-  LineChart,
+  LayoutGrid,
   LogOut,
   MessageCircle,
   Pencil,
+  Timer,
   User as UserIcon,
 } from "lucide-react";
 import { ClientAppBackground } from "@/components/ClientAppBackground";
+import { ClientBrandLogo } from "@/components/ClientBrandLogo";
 import { MuscleStreakBadges } from "@/components/MuscleStreakBadges";
 import { NotificationBell } from "@/components/NotificationBell";
 import { PromoMarquee } from "@/components/PromoMarquee";
@@ -22,16 +23,17 @@ import {
   useMuscleStreakStatus,
 } from "@/components/MuscleStreakContext";
 import { api, type User } from "@/lib/api-client";
+import { clientGlassNav } from "@/lib/client-ui";
 import type { DailyMuscleStatus } from "@/lib/muscle-streak-types";
 import { isAdminRole } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/workouts", label: "WORKOUTS", icon: Calendar },
-  { href: "/nutrition", label: "NUTRITION", icon: Apple },
-  { href: "/progress", label: "PROGRESS", icon: LineChart },
-  { href: "/coach", label: "COACH", icon: MessageCircle },
-  { href: "/profile", label: "PROFILE", icon: UserIcon },
+  { href: "/workouts", label: "Workouts", icon: LayoutGrid },
+  { href: "/nutrition", label: "Nutrition", icon: Timer },
+  { href: "/progress", label: "Progress", icon: Activity },
+  { href: "/coach", label: "Coach", icon: MessageCircle },
+  { href: "/profile", label: "Profile", icon: UserIcon },
 ];
 
 function tierBadgeLabel(tier: string) {
@@ -40,11 +42,7 @@ function tierBadgeLabel(tier: string) {
   return tier.toUpperCase();
 }
 
-function AppShellHeader({
-  user,
-}: {
-  user: User;
-}) {
+function AppShellHeader({ user }: { user: User }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -72,107 +70,104 @@ function AppShellHeader({
   if (!streakStatus) return null;
 
   return (
-    <div className="mx-auto flex max-w-5xl items-end justify-between gap-4 px-6 pt-4">
-          <div className="shrink-0 pb-2">
-            <MuscleStreakBadges status={streakStatus} compact />
-          </div>
-          <nav className="flex items-end justify-center gap-10 sm:gap-14">
-            {navItems.map(({ href, label, icon: Icon }) => {
-              const active = pathname === href || pathname.startsWith(`${href}/`);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    "relative flex flex-col items-center gap-1.5 pb-3 transition-colors",
-                    active ? "text-white" : "text-zinc-500 hover:text-zinc-300"
-                  )}
-                >
-                  <Icon className="h-5 w-5" strokeWidth={1.5} />
-                  <span className="text-[10px] font-semibold tracking-widest">
-                    {label}
-                  </span>
-                  {active && (
-                    <span className="absolute -bottom-px left-1/2 h-0.5 w-10 -translate-x-1/2 bg-white" />
-                  )}
-                </Link>
-              );
-            })}
-            {isAdminRole(user.role) && (
+    <div className="grid min-h-[69px] grid-cols-[1fr_auto] items-center gap-x-2 py-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-4">
+      {/* Left: streak badges */}
+      <div className="hidden min-w-0 justify-self-start lg:block">
+        <MuscleStreakBadges status={streakStatus} compact />
+      </div>
+
+      {/* Center: logo + nav */}
+      <div className="flex min-w-0 flex-wrap items-center justify-center gap-1 sm:gap-2">
+        <ClientBrandLogo compact className="mr-2 sm:mr-6 lg:mr-10" />
+        <nav className="flex flex-wrap items-center justify-center gap-1 sm:gap-2">
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href || pathname.startsWith(`${href}/`);
+            return (
               <Link
-                href="/admin"
+                key={href}
+                href={href}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 pb-3 text-[10px] font-semibold tracking-widest",
-                  pathname === "/admin" ? "text-white" : "text-zinc-500"
+                  "flex flex-col items-center gap-1 rounded-[10px] px-3 py-2 transition-colors sm:px-[18px]",
+                  active
+                    ? cn(clientGlassNav, "text-white")
+                    : "text-white/45 hover:bg-white/[0.07] hover:text-white"
                 )}
               >
-                <span className="text-xs">ADMIN</span>
+                <Icon
+                  className={cn("h-[18px] w-[18px]", active ? "stroke-white" : "stroke-current")}
+                  strokeWidth={2}
+                />
+                <span className="text-[10px] font-semibold tracking-[0.12em] uppercase">
+                  {label}
+                </span>
               </Link>
-            )}
-          </nav>
+            );
+          })}
+          {isAdminRole(user.role) && (
+            <Link
+              href="/admin"
+              className={cn(
+                "rounded-[10px] px-3 py-2 text-[10px] font-semibold tracking-widest uppercase",
+                pathname.startsWith("/admin")
+                  ? cn(clientGlassNav, "text-white")
+                  : "text-white/45 hover:bg-white/[0.07]"
+              )}
+            >
+              Admin
+            </Link>
+          )}
+        </nav>
+      </div>
 
-          <div className="flex items-center gap-4 pb-2">
-            <NotificationBell />
-            {isVip ? (
-              <span className="flex items-center gap-1.5 rounded-md bg-[#a3e635] px-3 py-1.5 text-[10px] font-bold tracking-wide text-black">
-                <Crown className="h-3.5 w-3.5" />
-                {tierBadgeLabel(user.tier_level)}
-              </span>
+      {/* Right: notifications + account */}
+      <div className="flex shrink-0 items-center justify-self-end gap-2 sm:gap-3">
+        <NotificationBell />
+        {isVip ? (
+          <span className="hidden items-center gap-1.5 rounded-md bg-[#C5F135] px-2 py-1 text-[9px] font-bold tracking-wide text-black md:flex">
+            <Crown className="h-3.5 w-3.5" />
+            {tierBadgeLabel(user.tier_level)}
+          </span>
+        ) : null}
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black/50"
+            aria-label="Account menu"
+          >
+            {user.profile_photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.profile_photo_url} alt="" className="h-full w-full object-cover" />
             ) : (
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-                {user.tier_level}
-              </span>
+              <UserIcon className="h-4 w-4 text-white/45" />
             )}
-            <div className="relative" ref={menuRef}>
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-11 z-50 w-56 overflow-hidden rounded-2xl border border-white/10 bg-black/90 py-2 shadow-xl backdrop-blur-md">
+              <div className="border-b border-white/10 px-4 pb-3">
+                <p className="font-bold text-white">{user.name}</p>
+                <p className="text-xs text-white/45">{user.email}</p>
+              </div>
+              <Link
+                href="/profile"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm text-white hover:bg-white/5"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit Profile
+              </Link>
               <button
                 type="button"
-                onClick={() => setMenuOpen((o) => !o)}
-                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-zinc-600 bg-zinc-900"
-                aria-label="Account menu"
+                onClick={logout}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-white/5"
               >
-                {user.profile_photo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.profile_photo_url}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <UserIcon className="h-4 w-4 text-zinc-400" />
-                )}
+                <LogOut className="h-4 w-4" />
+                Logout
               </button>
-              {menuOpen && (
-                <div className="absolute right-0 top-11 z-50 w-56 overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950 py-2 shadow-xl">
-                  <div className="border-b border-zinc-800 px-4 pb-3">
-                    <p className="font-bold uppercase text-white">{user.name}</p>
-                    <p className="text-xs text-zinc-500">{user.email}</p>
-                    {isVip && (
-                      <span className="mt-2 inline-flex items-center gap-1 rounded-md bg-[#a3e635] px-2 py-0.5 text-[9px] font-bold text-black">
-                        <Crown className="h-3 w-3" />
-                        {tierBadgeLabel(user.tier_level)}
-                      </span>
-                    )}
-                  </div>
-                  <Link
-                    href="/profile"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-white hover:bg-zinc-900"
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Edit Profile
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={logout}
-                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-zinc-900"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Logout
-                  </button>
-                </div>
-              )}
             </div>
-          </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -188,17 +183,19 @@ export function AppShell({
 }) {
   return (
     <MuscleStreakProvider initialStatus={muscleStatus}>
-      <div className="relative min-h-screen bg-zinc-950 text-white">
+      <div className="relative min-h-screen bg-[#0d0d0d] font-[family-name:var(--font-dm-sans)] text-[#F0F4F8]">
         <ClientAppBackground />
 
-        <div className="relative z-10">
-          <header className="border-b border-zinc-800/80 bg-black/55 backdrop-blur-md">
+        <header className="fixed top-0 right-0 left-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-xl">
+          <div className="mx-auto w-full max-w-[1440px] px-8 sm:px-10 lg:px-14 xl:px-16">
             <AppShellHeader user={user} />
             <PromoMarquee />
-          </header>
+          </div>
+        </header>
 
-          <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
-        </div>
+        <main className="relative z-10 mx-auto max-w-[750px] px-6 pt-[120px] pb-16">
+          {children}
+        </main>
       </div>
     </MuscleStreakProvider>
   );

@@ -3,9 +3,7 @@ import { NextRequest } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDb } from "../db";
 import { json, error, parseBody } from "../api-helpers";
-
-const DEFAULT_COACH_IMAGE =
-  "https://images.unsplash.com/photo-1550345332-09e3ac987658?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwxfHxmaXRuZXNzJTIwY29hY2glMjBwb3J0cmFpdHxlbnwwfHx8YmxhY2tfYW5kX3doaXRlfDE3ODA0OTQ2MjR8MA&ixlib=rb-4.1.0&q=85";
+import { ensureCoaches, serializeCoach } from "../coach-utils";
 
 export async function handleMessages(
   req: NextRequest,
@@ -83,16 +81,6 @@ export async function handleMessages(
 export async function handleCoaches(req: NextRequest): Promise<Response> {
   if (req.method !== "GET") return error("Method not allowed", 405);
   const db = await getDb();
-  let coaches = await db.collection("coaches").find({}).project({ _id: 0 }).toArray();
-  if (coaches.length === 0) {
-    const coach = {
-      id: uuidv4(),
-      name: "Coach Sarah",
-      profile_image_url: DEFAULT_COACH_IMAGE,
-      is_online: true,
-    };
-    await db.collection("coaches").insertOne(coach);
-    coaches = [coach];
-  }
-  return json(coaches);
+  const coaches = await ensureCoaches(db);
+  return json(coaches.map((coach) => serializeCoach(coach)));
 }

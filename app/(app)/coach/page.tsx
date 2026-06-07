@@ -1,5 +1,5 @@
 import { CoachClient } from "@/components/CoachClient";
-import { getCoaches, getMessages } from "@/lib/data";
+import { getCoaches, getMessages, getWeeklyReports } from "@/lib/data";
 import { requireAppUser } from "@/lib/session";
 
 export default async function CoachPage({
@@ -15,6 +15,7 @@ export default async function CoachPage({
       ? params.coach
       : (coaches[0]?.id ?? "");
   const messages = coachId ? await getMessages(user.id, coachId) : [];
+  const weeklyReports = await getWeeklyReports(user.id);
   return (
     <CoachClient
       userId={user.id}
@@ -22,6 +23,7 @@ export default async function CoachPage({
       coaches={coaches}
       coachId={coachId}
       initialMessages={messages}
+      initialReports={weeklyReports}
     />
   );
 }

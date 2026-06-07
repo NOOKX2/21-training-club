@@ -2,16 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { RunningIcon } from "@/components/icons/RunningIcon";
+import { Zap } from "lucide-react";
+import { ClientSectionHeading } from "@/components/ClientSectionHeading";
 import { ExerciseVideoPlayer } from "@/components/ExerciseVideoPlayer";
-import { Input, FieldLabel } from "@/components/ui/Input";
+import { StepperInput } from "@/components/StepperInput";
 import { Button } from "@/components/ui/Button";
-import { FitSelect } from "@/components/FitSelect";
 import { api } from "@/lib/api-client";
 import { useMuscleReward } from "@/components/MuscleStreakContext";
 import type { CardioLog, WorkoutDay } from "@/lib/data";
+import {
+  clientCard,
+  clientDayTab,
+  clientDayTabActive,
+  clientFieldLabel,
+  clientPageEyebrow,
+  clientPageTitle,
+  clientSaveButtonClass,
+  clientWeekSelect,
+} from "@/lib/client-ui";
 import { formatProgramCardio } from "@/lib/program-cardio";
 import { cn } from "@/lib/utils";
+
+const WEEK_OPTIONS = [1, 2, 3, 4];
 
 export function WorkoutClient({
   userId,
@@ -34,8 +46,9 @@ export function WorkoutClient({
   const [cardioLog, setCardioLog] = useState(initialCardioLog);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savingCardio, setSavingCardio] = useState(false);
+  const [savedIds, setSavedIds] = useState<Record<string, boolean>>({});
+  const [cardioSaved, setCardioSaved] = useState(false);
   const [messages, setMessages] = useState<Record<string, string>>({});
-  const [cardioMessage, setCardioMessage] = useState("");
 
   const dayData = days.find((d) => d.day === day);
 
@@ -59,7 +72,8 @@ export function WorkoutClient({
           actual_reps: entry?.actual_reps ?? "0",
         }),
       });
-      setMessages((m) => ({ ...m, [exerciseId]: "Saved" }));
+      setSavedIds((s) => ({ ...s, [exerciseId]: true }));
+      setTimeout(() => setSavedIds((s) => ({ ...s, [exerciseId]: false })), 2000);
       celebrateMuscleTask("workout");
       router.refresh();
     } catch (err) {
@@ -74,7 +88,6 @@ export function WorkoutClient({
 
   async function saveCardioLog() {
     setSavingCardio(true);
-    setCardioMessage("");
     try {
       await api("workouts/cardio-log", {
         method: "POST",
@@ -87,243 +100,231 @@ export function WorkoutClient({
           calories_burned: cardioLog.calories_burned,
         }),
       });
-      setCardioMessage("Saved");
+      setCardioSaved(true);
+      setTimeout(() => setCardioSaved(false), 2000);
       celebrateMuscleTask("workout");
       router.refresh();
     } catch (err) {
-      setCardioMessage(err instanceof Error ? err.message : "Save failed");
+      setMessages((m) => ({
+        ...m,
+        cardio: err instanceof Error ? err.message : "Save failed",
+      }));
     } finally {
       setSavingCardio(false);
     }
   }
 
   return (
-    <div className="space-y-10">
-      <section>
-        <h1 className="text-3xl font-bold uppercase tracking-tight text-white">
-          Training Program
-        </h1>
-        <div className="mt-6">
-          <FitSelect
-            label="Week"
-            value={week}
-            onChange={(w) => navigate(w, day)}
-            options={[1, 2, 3, 4].map((w) => ({
-              value: w,
-              label: `Week ${w}`,
-            }))}
-          />
-        </div>
+    <div>
+      <p className={clientPageEyebrow}>Week Program</p>
+      <h1 className={cn(clientPageTitle, "mb-8")}>Training Program</h1>
 
-        <div className="mt-6 grid grid-cols-7 gap-2">
-          {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+      <div className="mb-7 flex items-center gap-3">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+          Week
+        </span>
+        <select
+          value={week}
+          onChange={(e) => navigate(Number(e.target.value), day)}
+          className={clientWeekSelect}
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B93B8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+          }}
+        >
+          {WEEK_OPTIONS.map((w) => (
+            <option key={w} value={w} className="bg-zinc-900">
+              Week {w}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mb-9 flex flex-wrap gap-2">
+        {[1, 2, 3, 4, 5, 6, 7].map((d) => {
+          const active = day === d;
+          return (
             <button
               key={d}
               type="button"
               onClick={() => navigate(week, d)}
-              className={cn(
-                "flex flex-col items-center justify-center rounded-xl border py-5 transition-colors",
-                day === d
-                  ? "border-white bg-white text-black"
-                  : "border-zinc-700 bg-black text-white hover:border-zinc-500"
-              )}
+              className={cn(clientDayTab, active && clientDayTabActive)}
             >
-              <span className="text-[10px] font-medium uppercase tracking-widest">
+              <span
+                className={cn(
+                  "text-[9px] font-bold uppercase tracking-[0.18em]",
+                  active ? "text-black/50" : "text-white/45"
+                )}
+              >
                 Day
               </span>
-              <span className="mt-1 text-4xl font-light">{d}</span>
+              <span
+                className={cn(
+                  "font-[family-name:var(--font-inter)] text-[26px] font-extrabold leading-none tracking-[-0.04em]",
+                  active ? "text-black" : "text-white/60"
+                )}
+              >
+                {d}
+              </span>
             </button>
-          ))}
-        </div>
-      </section>
+          );
+        })}
+      </div>
 
-      <section>
-        <h2 className="mb-6 text-2xl font-bold uppercase tracking-tight text-white">
-          Day {day} Exercises
-        </h2>
+      <ClientSectionHeading className="mb-4">Day {day} Exercises</ClientSectionHeading>
 
-        <div className="divide-y divide-zinc-800 overflow-hidden rounded-2xl border border-zinc-800 bg-black/70 backdrop-blur-sm">
-          {dayData?.exercises.map((ex) => (
-            <div key={ex.id} className="p-6">
-              <div className="flex gap-5">
+      <div className="space-y-4">
+        {dayData?.exercises.map((ex) => (
+          <div key={ex.id} className={cn(clientCard, "px-6 py-6 sm:px-7")}>
+            <h3 className="font-[family-name:var(--font-inter)] text-lg font-extrabold tracking-[-0.03em] text-white">
+              {ex.name}
+            </h3>
+            <p className="mt-1 mb-5 text-[13px] text-white/45">
+              Target: {ex.target_sets} sets × {ex.target_reps} reps
+            </p>
+
+            <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+              {(ex.demo_video || ex.image_url) && (
                 <div className="shrink-0">
                   {ex.demo_video ? (
-                    <ExerciseVideoPlayer
-                      video={ex.demo_video}
-                      title={ex.name}
-                      compact
-                    />
-                  ) : ex.image_url ? (
+                    <ExerciseVideoPlayer video={ex.demo_video} title={ex.name} compact />
+                  ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={ex.image_url}
+                      src={ex.image_url!}
                       alt={ex.name}
-                      className="h-28 w-36 rounded-xl object-cover grayscale"
+                      className="h-28 w-44 rounded-xl object-cover"
                     />
-                  ) : (
-                    <div className="h-28 w-36 rounded-xl bg-zinc-900" />
                   )}
                 </div>
+              )}
 
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-lg font-bold uppercase tracking-wide text-white">
-                    {ex.name}
-                  </h3>
-                  <p className="mt-1 text-sm text-zinc-500">
-                    Target: {ex.target_sets} sets × {ex.target_reps} reps
-                  </p>
-
-                  <div className="mt-5 grid grid-cols-2 gap-4">
-                    <div>
-                      <FieldLabel>Weight (kg)</FieldLabel>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={logs[ex.id]?.actual_weight ?? ""}
-                        onChange={(e) =>
-                          setLogs({
-                            ...logs,
-                            [ex.id]: {
-                              actual_weight: e.target.value,
-                              actual_reps: logs[ex.id]?.actual_reps ?? "",
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel>Reps</FieldLabel>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={logs[ex.id]?.actual_reps ?? ""}
-                        onChange={(e) =>
-                          setLogs({
-                            ...logs,
-                            [ex.id]: {
-                              actual_reps: e.target.value,
-                              actual_weight: logs[ex.id]?.actual_weight ?? "",
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    className="mt-5 h-12 w-full text-sm"
-                    onClick={() => saveLog(ex.id)}
-                    disabled={savingId === ex.id}
-                  >
-                    {savingId === ex.id ? "Saving…" : "Save"}
-                  </Button>
-                  {messages[ex.id] && (
-                    <p
-                      className={`mt-2 text-xs ${
-                        messages[ex.id] === "Saved"
-                          ? "text-[#a3e635]"
-                          : "text-red-400"
-                      }`}
-                    >
-                      {messages[ex.id]}
-                    </p>
-                  )}
+              <div className="flex min-w-0 flex-1 gap-3">
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <label className={clientFieldLabel}>Weight (kg)</label>
+                  <StepperInput
+                    value={logs[ex.id]?.actual_weight ?? ""}
+                    onChange={(actual_weight) =>
+                      setLogs({
+                        ...logs,
+                        [ex.id]: {
+                          actual_weight,
+                          actual_reps: logs[ex.id]?.actual_reps ?? "",
+                        },
+                      })
+                    }
+                    step={1}
+                  />
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <label className={clientFieldLabel}>Reps</label>
+                  <StepperInput
+                    value={logs[ex.id]?.actual_reps ?? ""}
+                    onChange={(actual_reps) =>
+                      setLogs({
+                        ...logs,
+                        [ex.id]: {
+                          actual_reps,
+                          actual_weight: logs[ex.id]?.actual_weight ?? "",
+                        },
+                      })
+                    }
+                    step={1}
+                    inputMode="numeric"
+                  />
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
+
+            <Button
+              type="button"
+              variant="save"
+              className={cn(
+                clientSaveButtonClass,
+                savedIds[ex.id] && "border-white bg-white text-black hover:bg-white hover:text-black"
+              )}
+              onClick={() => saveLog(ex.id)}
+              disabled={savingId === ex.id}
+            >
+              {savingId === ex.id ? "Saving…" : savedIds[ex.id] ? "Saved ✓" : "Save"}
+            </Button>
+            {messages[ex.id] && (
+              <p className="mt-2 text-xs text-red-400">{messages[ex.id]}</p>
+            )}
+          </div>
+        ))}
+      </div>
 
       {dayData?.cardio && (
-        <section>
-          <h2 className="mb-6 text-2xl font-bold uppercase tracking-tight text-white">
-            Cardio
-          </h2>
-          <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/50 p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#a3e635]/10 text-[#a3e635]">
-                <RunningIcon className="h-7 w-7" />
+        <section className="mt-9">
+          <ClientSectionHeading className="mb-4">Cardio</ClientSectionHeading>
+          <div className={cn(clientCard, "px-6 py-6 sm:px-7")}>
+            <div className="mb-5 flex items-center gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#6B93B8] bg-gradient-to-br from-[#1C2E40] to-[#2a4560]">
+                <Zap className="h-5 w-5 stroke-[#A8C5DC]" strokeWidth={2} />
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-lg font-bold uppercase tracking-wide text-white">
+              <div>
+                <p className="font-[family-name:var(--font-inter)] text-base font-extrabold tracking-[-0.02em] text-white">
                   Today&apos;s Cardio
                 </p>
-                <p className="mt-1 text-sm text-zinc-500">
+                <p className="text-xs text-white/45">
                   Target: {formatProgramCardio(dayData.cardio)}
                 </p>
-
-                <div className="mt-5 grid grid-cols-3 gap-4">
-                  <div>
-                    <FieldLabel>Duration (min)</FieldLabel>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      value={cardioLog.duration_minutes}
-                      onChange={(e) =>
-                        setCardioLog({
-                          ...cardioLog,
-                          duration_minutes: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel>Distance (km)</FieldLabel>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.1"
-                      placeholder="0"
-                      value={cardioLog.distance_km}
-                      onChange={(e) =>
-                        setCardioLog({
-                          ...cardioLog,
-                          distance_km: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel>Burn (kcal)</FieldLabel>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      value={cardioLog.calories_burned}
-                      onChange={(e) =>
-                        setCardioLog({
-                          ...cardioLog,
-                          calories_burned: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  className="mt-5 h-12 w-full text-sm"
-                  onClick={saveCardioLog}
-                  disabled={savingCardio}
-                >
-                  {savingCardio ? "Saving…" : "Save"}
-                </Button>
-                {cardioMessage && (
-                  <p
-                    className={`mt-2 text-xs ${
-                      cardioMessage === "Saved"
-                        ? "text-[#a3e635]"
-                        : "text-red-400"
-                    }`}
-                  >
-                    {cardioMessage}
-                  </p>
-                )}
               </div>
             </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex flex-1 flex-col gap-1.5">
+                <label className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">
+                  Duration (min)
+                </label>
+                <StepperInput
+                  value={cardioLog.duration_minutes}
+                  onChange={(duration_minutes) =>
+                    setCardioLog({ ...cardioLog, duration_minutes })
+                  }
+                  inputMode="numeric"
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <label className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">
+                  Distance (km)
+                </label>
+                <StepperInput
+                  value={cardioLog.distance_km}
+                  onChange={(distance_km) => setCardioLog({ ...cardioLog, distance_km })}
+                  step={1}
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <label className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">
+                  Burn (kcal)
+                </label>
+                <StepperInput
+                  value={cardioLog.calories_burned}
+                  onChange={(calories_burned) =>
+                    setCardioLog({ ...cardioLog, calories_burned })
+                  }
+                  inputMode="numeric"
+                />
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="save"
+              className={cn(
+                "mt-4",
+                clientSaveButtonClass,
+                cardioSaved && "border-white bg-white text-black hover:bg-white hover:text-black"
+              )}
+              onClick={saveCardioLog}
+              disabled={savingCardio}
+            >
+              {savingCardio ? "Saving…" : cardioSaved ? "Saved ✓" : "Save"}
+            </Button>
+            {messages.cardio && (
+              <p className="mt-2 text-xs text-red-400">{messages.cardio}</p>
+            )}
           </div>
         </section>
       )}

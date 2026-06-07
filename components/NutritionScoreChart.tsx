@@ -127,8 +127,8 @@ export function NutritionScoreChart({
 
             <defs>
               <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#a3e635" stopOpacity="0.5" />
-                <stop offset="100%" stopColor="#a3e635" stopOpacity="0" />
+                <stop offset="0%" stopColor="#6b93b8" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#6b93b8" stopOpacity="0" />
               </linearGradient>
             </defs>
 
@@ -136,7 +136,7 @@ export function NutritionScoreChart({
               <path
                 d={chart.linePath}
                 fill="none"
-                stroke="#a3e635"
+                stroke="#6b93b8"
                 strokeWidth={3}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -149,7 +149,7 @@ export function NutritionScoreChart({
                   x={point.x}
                   y={point.y - 12}
                   textAnchor="middle"
-                  className="fill-[#a3e635] text-[11px] font-semibold"
+                  className="fill-[#6b93b8] text-[11px] font-semibold"
                 >
                   {point.score.toFixed(1)}
                 </text>
@@ -157,7 +157,7 @@ export function NutritionScoreChart({
                   cx={point.x}
                   cy={point.y}
                   r={5}
-                  fill="#a3e635"
+                  fill="#6b93b8"
                   stroke="#18181b"
                   strokeWidth={2}
                 />
@@ -181,7 +181,7 @@ export function NutritionScoreChart({
 
         {hasScores && (
           <div className="mt-2 flex items-center justify-center gap-2 text-xs text-zinc-400">
-            <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-[#a3e635]">
+            <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-[#6b93b8]">
               <span className="h-1 w-1 rounded-full bg-white" />
             </span>
             Food score (1–5)

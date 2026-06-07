@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Calendar, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ClientPageHeader } from "@/components/ClientPageHeader";
 import { Button } from "@/components/ui/Button";
+import { clientField } from "@/lib/client-ui";
 import { localDateKey } from "@/lib/date-utils";
 
 function formatDisplayDate(dateKey: string) {
@@ -38,29 +40,22 @@ export function NutritionHeader({
   }
 
   return (
-    <>
-      <div className="border-b border-zinc-800 bg-zinc-950 py-4">
-        <p className="text-sm font-bold uppercase tracking-widest text-white">
-          Nutrition Trends
-        </p>
-      </div>
-
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold uppercase tracking-tight text-white">
-          Nutrition Tracker
-        </h1>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center overflow-hidden rounded-xl border border-zinc-700 bg-black">
+    <ClientPageHeader
+      eyebrow="Daily Tracking"
+      title="Nutrition Tracker"
+      actions={
+        <>
+          <div className={`flex items-stretch overflow-hidden ${clientField}`}>
             <button
               type="button"
               onClick={() => navigate(shiftDateKey(selectedDate, -1))}
-              className="flex h-11 w-10 items-center justify-center text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-white"
+              className="flex w-10 items-center justify-center text-white/45 transition-colors hover:bg-white/5 hover:text-white"
               aria-label="Previous day"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <label className="relative flex cursor-pointer items-center gap-2 border-x border-zinc-700 px-4 py-2.5">
-              <Calendar className="h-4 w-4 shrink-0 text-[#a3e635]" />
+            <label className="relative flex cursor-pointer items-center gap-2 border-x border-white/10 px-4 py-2.5">
+              <Calendar className="h-4 w-4 shrink-0 text-[#a8c5dc]" />
               <span className="text-sm text-white">{formatDisplayDate(selectedDate)}</span>
               <input
                 type="date"
@@ -77,7 +72,7 @@ export function NutritionHeader({
               type="button"
               onClick={() => navigate(shiftDateKey(selectedDate, 1))}
               disabled={!canGoForward}
-              className="flex h-11 w-10 items-center justify-center text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+              className="flex w-10 items-center justify-center text-white/45 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
               aria-label="Next day"
             >
               <ChevronRight className="h-4 w-4" />
@@ -87,7 +82,7 @@ export function NutritionHeader({
             <button
               type="button"
               onClick={() => navigate(today)}
-              className="rounded-xl border border-zinc-700 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 transition-colors hover:border-zinc-500 hover:text-white"
+              className="rounded-xl border border-white/10 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-white/45 transition-colors hover:border-white/25 hover:text-white"
             >
               Today
             </button>
@@ -100,8 +95,8 @@ export function NutritionHeader({
               </Button>
             </Link>
           )}
-        </div>
-      </div>
-    </>
+        </>
+      }
+    />
   );
 }

@@ -3,12 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Scale, TrendingUp } from "lucide-react";
+import { ClientPageHeader } from "@/components/ClientPageHeader";
+import { StepperInput } from "@/components/StepperInput";
 import { WeightProgressChart } from "@/components/WeightProgressChart";
 import { useMuscleReward } from "@/components/MuscleStreakContext";
 import { Button } from "@/components/ui/Button";
 import { Input, FieldLabel } from "@/components/ui/Input";
 import { api } from "@/lib/api-client";
+import { clientCard, clientCardInner, clientSaveButtonClass, clientSectionLabel, clientField } from "@/lib/client-ui";
 import type { ProgressPhoto, WeightEntry } from "@/lib/data";
+import { cn } from "@/lib/utils";
 
 function formatPhotoDate(date?: string) {
   if (!date) return "—";
@@ -44,7 +48,7 @@ function ComparePhotoColumn({
       <select
         value={selectedId}
         onChange={(e) => onSelect(e.target.value)}
-        className="w-full rounded-xl border border-zinc-700 bg-black px-3 py-2.5 text-sm text-white"
+        className={cn("w-full px-3 py-2.5 text-sm text-white focus:outline-none", clientField)}
       >
         {photos.map((p) => (
           <option key={p.id} value={p.id}>
@@ -249,71 +253,65 @@ export function ProgressClient({
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold uppercase tracking-tight text-white">
-        Progress Tracker
-      </h1>
+      <ClientPageHeader eyebrow="Body Stats" title="Progress Tracker" />
 
       {message && <p className="text-sm text-[#a3e635]">{message}</p>}
       {error && <p className="text-sm text-red-400">{error}</p>}
 
-      <section className="rounded-2xl border border-zinc-800 p-6">
-        <h2 className="text-lg font-bold uppercase tracking-wide text-white">
-          Weight Tracker
-        </h2>
+      <section className={cn(clientCard, "p-6")}>
+        <p className={clientSectionLabel}>Weight Tracker</p>
         <div className="mt-5 grid grid-cols-2 gap-4">
           <div>
-            <FieldLabel>Today&apos;s Weight (kg)</FieldLabel>
-            <Input
-              type="number"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-            />
+            <FieldLabel>Current Weight (kg)</FieldLabel>
+            <StepperInput value={weight} onChange={setWeight} step={0.5} />
           </div>
           <div>
             <FieldLabel>Height (cm)</FieldLabel>
-            <Input
-              type="number"
+            <StepperInput
               value={height}
-              onChange={(e) => setHeight(e.target.value)}
+              onChange={setHeight}
+              step={1}
+              inputMode="numeric"
             />
           </div>
         </div>
         <Button
           type="button"
-          className="mt-5 h-12 w-full text-sm"
+          variant="save"
+          className={cn("mt-5", clientSaveButtonClass)}
           onClick={logWeight}
         >
           Log Weight
         </Button>
 
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="rounded-xl border border-zinc-800 px-4 py-3 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          <div className={cn(clientCardInner, "px-4 py-3 text-center")}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
               Total Change
             </p>
             <p className={`mt-1 text-2xl font-bold ${changeColor}`}>
               {hasWeightHistory ? formatSigned(changePercent, "%") : "—"}
             </p>
           </div>
-          <div className="rounded-xl border border-zinc-800 px-4 py-3 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-              Change in Kg
+          <div className={cn(clientCardInner, "px-4 py-3 text-center")}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
+              Change (kg)
             </p>
             <p className={`mt-1 text-2xl font-bold ${changeColor}`}>
               {hasWeightHistory ? formatSigned(changeKg, " kg") : "—"}
             </p>
           </div>
-          <div className="rounded-xl border border-zinc-800 px-4 py-3 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          <div className={cn(clientCardInner, "px-4 py-3 text-center")}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
               Current BMI
             </p>
             <p className="mt-1 text-2xl font-bold text-white">
               {bmi != null ? bmi.toFixed(1) : "—"}
             </p>
           </div>
-          <div className="rounded-xl border border-zinc-800 px-4 py-3 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-              Avg / Time
+          <div className={cn(clientCardInner, "px-4 py-3 text-center")}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
+              Vol. Time
             </p>
             <p
               className={`mt-1 text-2xl font-bold ${
@@ -329,9 +327,7 @@ export function ProgressClient({
               {avgPerTime != null ? (
                 <>
                   {formatSigned(avgPerTime, "")}
-                  <span className="ml-1 text-sm font-normal text-zinc-500">
-                    kg
-                  </span>
+                  <span className="ml-1 text-sm font-normal text-white/45">kg</span>
                 </>
               ) : (
                 "—"
@@ -341,29 +337,24 @@ export function ProgressClient({
         </div>
 
         {!hasWeightHistory ? (
-          <div className="mt-10 flex flex-col items-center py-12 text-zinc-500">
+          <div className="mt-10 flex flex-col items-center py-12 text-white/45">
             <Scale className="mb-4 h-12 w-12 stroke-1" />
-            <p className="text-sm">
-              Start tracking your weight to see progress
-            </p>
+            <p className="text-sm">Start tracking your weight to see progress</p>
           </div>
         ) : (
-          <WeightProgressChart history={history} />
+          <div className="mt-8">
+            <p className={clientSectionLabel}>Weight Progress</p>
+            <WeightProgressChart history={history} />
+          </div>
         )}
       </section>
 
-      <section className="rounded-2xl border border-zinc-800 p-6">
-        <h2 className="text-lg font-bold uppercase tracking-wide text-white">
-          Upload Progress Photo
-        </h2>
+      <section className={cn(clientCard, "p-6")}>
+        <p className={clientSectionLabel}>Upload Progress Photo</p>
         <div className="mt-5 grid grid-cols-2 gap-4">
           <div>
             <FieldLabel>Current Weight (kg)</FieldLabel>
-            <Input
-              type="number"
-              value={photoWeight}
-              onChange={(e) => setPhotoWeight(e.target.value)}
-            />
+            <StepperInput value={photoWeight} onChange={setPhotoWeight} step={0.5} />
           </div>
           <div>
             <FieldLabel>Notes</FieldLabel>
@@ -395,26 +386,23 @@ export function ProgressClient({
         )}
         <Button
           type="button"
-          className="mt-5 flex h-12 w-full items-center justify-center gap-2 text-sm"
+          variant="save"
+          className={cn("mt-5 flex h-12 w-full items-center justify-center gap-2 text-sm")}
           onClick={openPhotoPicker}
           disabled={uploadingPhoto}
         >
           <Camera className="h-4 w-4" />
-          {uploadingPhoto ? "Uploading…" : "Take/Upload Photo"}
+          {uploadingPhoto ? "Uploading…" : "Take / Upload Photo"}
         </Button>
       </section>
 
-      <section className="rounded-2xl border border-zinc-800 p-6">
-        <h2 className="text-lg font-bold uppercase tracking-wide text-white">
-          Before &amp; After
-        </h2>
+      <section className={cn(clientCard, "p-6")}>
+        <p className={clientSectionLabel}>Before &amp; After</p>
         {!hasPhotos ? (
           <div className="mt-6 flex flex-col items-center py-12 text-center">
-            <TrendingUp className="mb-4 h-12 w-12 text-zinc-600" />
-            <p className="font-medium text-white">
-              Start tracking your transformation
-            </p>
-            <p className="mt-2 max-w-sm text-sm text-zinc-500">
+            <TrendingUp className="mb-4 h-12 w-12 text-white/25" />
+            <p className="font-medium text-white">Start tracking your transformation</p>
+            <p className="mt-2 max-w-sm text-sm text-white/45">
               Upload a progress photo to see your first and latest comparison
             </p>
           </div>

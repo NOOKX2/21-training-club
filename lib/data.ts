@@ -7,9 +7,10 @@ import { dateKeyFromIso, localDateKey, localDayRange } from "./date-utils";
 import { getDb } from "./db";
 import { progressPhotoStreamPath, readProgressPhotoAsDataUrl } from "./progress-photo-storage";
 import { averageMealRating } from "./nutrition-utils";
-
-const DEFAULT_COACH_IMAGE =
-  "https://images.unsplash.com/photo-1550345332-09e3ac987658?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwxfHxmaXRuZXNzJTIwY29hY2glMjBwb3J0cmFpdHxlbnwwfHx8YmxhY2tfYW5kX3doaXRlfDE3ODA0OTQ2MjR8MA&ixlib=rb-4.1.0&q=85";
+import {
+  ensureCoaches,
+  serializeCoach,
+} from "./coach-utils";
 
 const DEFAULT_EXERCISE_IMAGE =
   "https://images.unsplash.com/photo-1574680096145-d05b474e2155?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwyfHxneW0lMjB3b3Jrb3V0JTIwYmFyYmVsbHxlbnwwfHx8YmxhY2tfYW5kX3doaXRlfDE3ODA0OTQ2MjR8MA&ixlib=rb-4.1.0&q=85";
@@ -107,6 +108,15 @@ export type Message = {
   content: string;
   attachment_base64?: string;
   timestamp: string;
+};
+
+export type WeeklyReport = {
+  id: string;
+  user_id: string;
+  week_number: number;
+  report_text: string;
+  created_at: string;
+  updated_at?: string;
 };
 
 export type LiftRecord = {
@@ -544,18 +554,26 @@ export async function getProgressPhotos(userId: string): Promise<ProgressPhoto[]
 
 export async function getCoaches(): Promise<Coach[]> {
   const db = await getDb();
-  let coaches = await db.collection("coaches").find({}).project({ _id: 0 }).toArray();
-  if (coaches.length === 0) {
-    const coach = {
-      id: uuidv4(),
-      name: "Coach Sarah",
-      profile_image_url: DEFAULT_COACH_IMAGE,
-      is_online: true,
-    };
-    await db.collection("coaches").insertOne(coach);
-    coaches = [coach];
-  }
-  return coaches as Coach[];
+  const coaches = await ensureCoaches(db);
+  return coaches.map((coach) => serializeCoach(coach));
+}
+
+export async function getWeeklyReports(userId: string): Promise<WeeklyReport[]> {
+  const db = await getDb();
+  const reports = await db
+    .collection("weekly_reports")
+    .find({ user_id: userId })
+    .project({ _id: 0 })
+    .sort({ week_number: -1 })
+    .toArray();
+  return reports.map((report) => ({
+    id: String(report.id),
+    user_id: String(report.user_id),
+    week_number: Number(report.week_number),
+    report_text: String(report.report_text ?? ""),
+    created_at: String(report.created_at ?? ""),
+    updated_at: report.updated_at ? String(report.updated_at) : undefined,
+  }));
 }
 
 export async function getMessages(userId: string, coachId: string): Promise<Message[]> {

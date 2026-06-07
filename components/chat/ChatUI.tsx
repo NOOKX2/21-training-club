@@ -43,22 +43,22 @@ function ChatBubble({
   isOwn,
   avatarUrl,
   senderLabel,
+  peerInitials,
+  variant = "default",
 }: {
   message: Message;
   isOwn: boolean;
   avatarUrl?: string;
   senderLabel?: string;
+  peerInitials?: string;
+  variant?: "default" | "coach";
 }) {
   const hasText = message.content && message.content !== "[Attachment]";
   const hasAttachment = Boolean(message.attachment_base64);
+  const isCoach = variant === "coach";
 
   return (
-    <div
-      className={cn(
-        "flex gap-2",
-        isOwn ? "flex-row-reverse" : "flex-row"
-      )}
-    >
+    <div className={cn("flex gap-2.5", isOwn ? "flex-row-reverse" : "flex-row")}>
       {!isOwn && (
         <div className="mt-auto shrink-0 pb-5">
           {avatarUrl ? (
@@ -66,11 +66,16 @@ function ChatBubble({
             <img
               src={avatarUrl}
               alt=""
-              className="h-8 w-8 rounded-full object-cover ring-2 ring-zinc-800"
+              className="h-9 w-9 rounded-full object-cover ring-2 ring-white/10"
             />
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 ring-2 ring-zinc-800">
-              <User className="h-4 w-4 text-zinc-500" />
+            <div
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold text-white",
+                isCoach ? "bg-[#6B93B8]" : "bg-zinc-800"
+              )}
+            >
+              {peerInitials || <User className="h-4 w-4 text-white/70" />}
             </div>
           )}
         </div>
@@ -78,26 +83,30 @@ function ChatBubble({
 
       <div
         className={cn(
-          "flex max-w-[min(85%,20rem)] flex-col gap-1",
+          "flex max-w-[min(85%,22rem)] flex-col gap-1",
           isOwn ? "items-end" : "items-start"
         )}
       >
-        {!isOwn && senderLabel && (
-          <span className="px-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+        {!isOwn && senderLabel && !isCoach && (
+          <span className="px-1 text-[10px] font-semibold uppercase tracking-wider text-white/45">
             {senderLabel}
           </span>
         )}
 
         <div
           className={cn(
-            "overflow-hidden shadow-sm",
-            isOwn
-              ? "rounded-2xl rounded-br-md bg-[#a3e635] text-black"
-              : "rounded-2xl rounded-bl-md border border-zinc-700/80 bg-zinc-900/95 text-white"
+            "overflow-hidden",
+            isCoach
+              ? isOwn
+                ? "rounded-2xl bg-white/[0.12] text-white"
+                : "rounded-2xl border border-white/10 bg-black/45 text-white"
+              : isOwn
+                ? "rounded-2xl rounded-br-md border border-white/10 bg-black/55 text-white shadow-sm"
+                : "rounded-2xl rounded-bl-md border border-white/10 bg-black/40 text-white shadow-sm"
           )}
         >
           {hasAttachment && (
-            <div className={cn(hasText ? "border-b border-black/10" : "")}>
+            <div className={cn(hasText ? "border-b border-white/10" : "")}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={message.attachment_base64}
@@ -107,20 +116,13 @@ function ChatBubble({
             </div>
           )}
           {hasText && (
-            <p
-              className={cn(
-                "whitespace-pre-wrap break-words px-4 py-2.5 text-[15px] leading-relaxed",
-                isOwn ? "text-black" : "text-zinc-100"
-              )}
-            >
+            <p className="whitespace-pre-wrap break-words px-4 py-3 text-[15px] leading-relaxed text-white/90">
               {message.content}
             </p>
           )}
         </div>
 
-        <span className="px-1 text-[10px] text-zinc-500">
-          {formatTime(message.timestamp)}
-        </span>
+        <span className="px-1 text-[10px] text-white/35">{formatTime(message.timestamp)}</span>
       </div>
     </div>
   );
@@ -133,6 +135,8 @@ export function ChatMessageList({
   emptyHint = "Say hello to start the conversation.",
   peerAvatarUrl,
   peerLabel,
+  peerInitials,
+  variant = "default",
 }: {
   messages: Message[];
   isOwnMessage: (message: Message) => boolean;
@@ -140,6 +144,8 @@ export function ChatMessageList({
   emptyHint?: string;
   peerAvatarUrl?: string;
   peerLabel?: string;
+  peerInitials?: string;
+  variant?: "default" | "coach";
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -150,13 +156,11 @@ export function ChatMessageList({
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-900 ring-1 ring-zinc-800">
-          <User className="h-8 w-8 text-zinc-600" />
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-black/40 ring-1 ring-white/10">
+          <User className="h-8 w-8 text-white/30" />
         </div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          {emptyTitle}
-        </p>
-        <p className="mt-2 max-w-xs text-sm text-zinc-600">{emptyHint}</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-white/45">{emptyTitle}</p>
+        <p className="mt-2 max-w-xs text-sm text-white/35">{emptyHint}</p>
       </div>
     );
   }
@@ -164,17 +168,17 @@ export function ChatMessageList({
   let lastDate = "";
 
   return (
-    <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
+    <div className="flex-1 space-y-5 overflow-y-auto px-5 py-6 sm:px-6">
       {messages.map((message) => {
         const key = dateKey(message.timestamp);
         const showDate = key !== lastDate;
         lastDate = key;
 
         return (
-          <div key={message.id} className="space-y-4">
+          <div key={message.id} className="space-y-5">
             {showDate && (
               <div className="flex justify-center">
-                <span className="rounded-full bg-zinc-900/90 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500 ring-1 ring-zinc-800">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">
                   {formatDateLabel(message.timestamp)}
                 </span>
               </div>
@@ -184,6 +188,8 @@ export function ChatMessageList({
               isOwn={isOwnMessage(message)}
               avatarUrl={!isOwnMessage(message) ? peerAvatarUrl : undefined}
               senderLabel={!isOwnMessage(message) ? peerLabel : undefined}
+              peerInitials={peerInitials}
+              variant={variant}
             />
           </div>
         );
@@ -201,6 +207,7 @@ export function ChatComposer({
   placeholder = "Type a message...",
   sendLabel = "Send",
   canSend,
+  variant = "default",
 }: {
   content: string;
   onContentChange: (value: string) => void;
@@ -209,12 +216,32 @@ export function ChatComposer({
   placeholder?: string;
   sendLabel?: string;
   canSend?: boolean;
+  variant?: "default" | "coach";
 }) {
   const ready = canSend ?? Boolean(content.trim());
+  const isCoach = variant === "coach";
+
   return (
-    <div className="border-t border-zinc-800/80 bg-zinc-950/90 px-4 py-4 backdrop-blur-md">
-      <div className="flex items-end gap-3 rounded-2xl border border-zinc-700/80 bg-zinc-900/80 p-2 shadow-inner">
-        <label className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white">
+    <div
+      className={cn(
+        "border-t border-white/10 px-5 py-4",
+        isCoach ? "bg-black/30" : "bg-black/35 backdrop-blur-md"
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center gap-3 rounded-2xl border border-white/10 p-2",
+          isCoach ? "bg-black/50" : "bg-black/45"
+        )}
+      >
+        <label
+          className={cn(
+            "flex shrink-0 cursor-pointer items-center justify-center text-white/45 transition-colors hover:text-white",
+            isCoach
+              ? "h-10 w-10 rounded-full border border-white/10 bg-white/[0.06] hover:bg-white/10"
+              : "h-10 w-10 rounded-xl hover:bg-white/5"
+          )}
+        >
           <Paperclip className="h-5 w-5" />
           <input
             type="file"
@@ -234,13 +261,18 @@ export function ChatComposer({
               onSend();
             }
           }}
-          className="max-h-32 min-h-[2.5rem] flex-1 resize-none bg-transparent px-1 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none"
+          className="max-h-32 min-h-[2.5rem] flex-1 resize-none bg-transparent px-1 py-2 text-sm text-white placeholder:text-white/35 focus:outline-none"
         />
         <button
           type="button"
           onClick={onSend}
           disabled={!ready}
-          className="flex h-10 shrink-0 items-center justify-center rounded-xl bg-[#a3e635] px-4 text-xs font-bold uppercase tracking-wide text-black transition-opacity hover:bg-[#bef264] disabled:cursor-not-allowed disabled:opacity-40"
+          className={cn(
+            "shrink-0 font-bold uppercase tracking-wide transition-opacity disabled:cursor-not-allowed disabled:opacity-40",
+            isCoach
+              ? "rounded-xl bg-white px-5 py-2.5 text-xs text-black hover:bg-zinc-200"
+              : "flex h-10 items-center justify-center rounded-xl bg-white px-5 text-xs text-black hover:bg-zinc-200"
+          )}
         >
           {sendLabel}
         </button>

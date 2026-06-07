@@ -9,6 +9,8 @@ import { Input, FieldLabel } from "@/components/ui/Input";
 import { NutritionHeader } from "@/components/NutritionHeader";
 import { useMuscleReward } from "@/components/MuscleStreakContext";
 import { api } from "@/lib/api-client";
+import { clientCard, clientField } from "@/lib/client-ui";
+import { cn } from "@/lib/utils";
 
 const MEAL_OPTIONS = [
   { value: 1, label: "Meal 1" },
@@ -72,10 +74,7 @@ export function NutritionSubmitClient({ userId }: { userId: string }) {
     <div className="space-y-0">
       <NutritionHeader showAddButton={false} />
 
-      <form
-        onSubmit={submitMeal}
-        className="mx-auto mt-10 max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-950/80 p-8"
-      >
+      <form onSubmit={submitMeal} className={cn(clientCard, "mx-auto mt-10 max-w-2xl p-8")}>
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-xl font-bold uppercase tracking-wide text-white">
             Submit Meal
@@ -96,7 +95,7 @@ export function NutritionSubmitClient({ userId }: { userId: string }) {
               <select
                 value={mealNumber}
                 onChange={(e) => setMealNumber(Number(e.target.value))}
-                className="w-full rounded-xl border border-zinc-700 bg-black px-4 py-3 text-sm text-white focus:border-zinc-500 focus:outline-none"
+                className={cn("w-full px-4 py-3 text-sm text-white focus:outline-none", clientField)}
               >
                 {MEAL_OPTIONS.map((m) => (
                   <option key={m.value} value={m.value}>
@@ -132,13 +131,13 @@ export function NutritionSubmitClient({ userId }: { userId: string }) {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe your meal... (e.g., Grilled chicken with rice and vegetables)"
               rows={5}
-              className="w-full resize-none rounded-xl border border-zinc-700 bg-black px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
+              className={cn("w-full resize-none px-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none", clientField)}
             />
           </div>
 
           <div>
             <FieldLabel>Meal Photo</FieldLabel>
-            <label className="flex h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-black text-sm font-medium uppercase tracking-wide text-white transition-colors hover:border-zinc-500">
+            <label className={cn("flex h-14 w-full cursor-pointer items-center justify-center gap-2 text-sm font-medium uppercase tracking-wide text-white transition-colors hover:border-white/25", clientField)}>
               <Camera className="h-5 w-5" />
               {photoName ? photoName : "Take/Upload Photo"}
               <input

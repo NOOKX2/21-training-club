@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
 import { ChatComposer, ChatMessageList } from "@/components/chat/ChatUI";
+import { CoachProfileEditor } from "@/components/admin/CoachProfileEditor";
+import { CoachWeeklyFeedbackForm } from "@/components/admin/CoachWeeklyFeedbackForm";
 import { markChatNotificationsRead } from "@/components/NotificationBell";
 import { api } from "@/lib/api-client";
 import type { AdminClient, Coach, Message } from "@/lib/data";
@@ -66,6 +68,8 @@ export function AdminChat({
         Chat with Clients
       </h1>
 
+      {coach ? <CoachProfileEditor coach={coach} /> : null}
+
       <div className="flex h-[calc(100vh-12rem)] border border-zinc-800">
         <div className="w-72 shrink-0 overflow-y-auto border-r border-zinc-800 bg-zinc-950">
           <p className="border-b border-zinc-800 px-4 py-3 text-xs font-bold uppercase tracking-widest text-white">
@@ -105,6 +109,8 @@ export function AdminChat({
                   <p className="text-xs text-zinc-500">{selected.tier_level}</p>
                 </div>
               </div>
+
+              <CoachWeeklyFeedbackForm clientId={selectedClientId} />
 
               <div className="flex min-h-0 flex-1 flex-col bg-black/50">
                 <ChatMessageList

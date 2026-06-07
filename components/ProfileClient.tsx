@@ -3,14 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Award, Camera, Pencil, Trophy, User } from "lucide-react";
+import { ClientPageHeader } from "@/components/ClientPageHeader";
 import { Button } from "@/components/ui/Button";
 import { Input, FieldLabel } from "@/components/ui/Input";
 import { api } from "@/lib/api-client";
+import { clientCard, clientCardInner, clientSectionLabel } from "@/lib/client-ui";
+import type { LiftRecord } from "@/lib/data";
+import { cn } from "@/lib/utils";
 import {
   formatLiftAmount,
   liftInputPlaceholder,
 } from "@/lib/lift-utils";
-import type { LiftRecord } from "@/lib/data";
 
 const LIFT_EXERCISES = [
   "Chest Press",
@@ -237,23 +240,19 @@ export function ProfileClient({
           onClose={() => setVerifiedCelebration(null)}
         />
       )}
-      <section className="rounded-2xl border border-zinc-800 p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold uppercase tracking-tight text-white">
-              My Profile
-            </h1>
-            <p className="mt-1 text-sm text-zinc-500">
-              Manage your account details
-            </p>
-          </div>
+
+      <ClientPageHeader
+        eyebrow="Account"
+        title="My Profile"
+        subtitle="Manage your account details"
+        actions={
           <div className="flex items-center gap-2">
             {editing && (
               <button
                 type="button"
                 onClick={cancelEditing}
                 disabled={saving}
-                className="rounded-xl border border-zinc-700 px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-400 hover:border-zinc-500 hover:text-white disabled:opacity-50"
+                className="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium uppercase tracking-wide text-white/45 hover:border-white/25 hover:text-white disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -262,17 +261,19 @@ export function ProfileClient({
               type="button"
               onClick={() => (editing ? saveProfile() : startEditing())}
               disabled={saving}
-              className="flex items-center gap-2 rounded-xl border border-zinc-600 px-3 py-2 text-xs font-medium uppercase tracking-wide text-white hover:border-zinc-400 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl border border-white/20 px-3 py-2 text-xs font-medium uppercase tracking-wide text-white hover:border-white/40 disabled:opacity-50"
             >
               <Pencil className="h-3.5 w-3.5" />
               {saving ? "Saving…" : editing ? "Save Profile" : "Edit Profile"}
             </button>
           </div>
-        </div>
+        }
+      />
 
-        <div className="mt-8 flex gap-6">
+      <section className={cn(clientCard, "p-6")}>
+        <div className="flex gap-6">
           <div className="shrink-0">
-            <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-zinc-700 bg-zinc-900">
+            <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#6b93b8]/30">
               {avatarSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -281,7 +282,7 @@ export function ProfileClient({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <User className="h-12 w-12 text-zinc-600" />
+                <User className="h-12 w-12 text-white/30" />
               )}
             </div>
             {editing && (
@@ -296,7 +297,7 @@ export function ProfileClient({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="mt-3 flex w-24 items-center justify-center gap-1.5 rounded-xl border border-zinc-700 px-2 py-2 text-[10px] font-medium uppercase tracking-wide text-zinc-300 hover:border-zinc-500 hover:text-white"
+                  className="mt-3 flex w-24 items-center justify-center gap-1.5 rounded-xl border border-white/10 px-2 py-2 text-[10px] font-medium uppercase tracking-wide text-white/60 hover:border-white/25 hover:text-white"
                 >
                   <Camera className="h-3.5 w-3.5" />
                   Upload
@@ -330,9 +331,9 @@ export function ProfileClient({
         )}
       </section>
 
-      <section className="rounded-2xl border border-zinc-800 p-6">
-        <h2 className="flex items-center gap-2 text-lg font-bold uppercase text-white">
-          <Award className="h-5 w-5 text-[#a3e635]" />
+      <section className={cn(clientCard, "p-6")}>
+        <h2 className={cn(clientSectionLabel, "flex items-center gap-2 normal-case tracking-[0.18em] text-white/55")}>
+          <Award className="h-4 w-4 text-[#a3e635]" />
           My Top Lifts
         </h2>
         <div className="mt-6 space-y-6">
@@ -347,24 +348,22 @@ export function ProfileClient({
             const statusLabel = liftStatusLabel(status);
             return (
               <div key={exercise}>
-                <p className="mb-2 text-sm font-bold uppercase text-white">
-                  {exercise}
-                </p>
+                <p className="mb-2 text-sm font-bold uppercase text-white/80">{exercise}</p>
 
                 {verified && record && (
-                  <div className="mb-3 flex items-center gap-3 rounded-xl border border-[#a3e635]/40 bg-[#a3e635]/10 px-4 py-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#a3e635] text-black">
+                  <div className="mb-3 flex items-center gap-3 rounded-xl border border-[#5BAD8F]/35 bg-[#5BAD8F]/10 px-4 py-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#5BAD8F] text-black">
                       <Trophy className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold uppercase text-[#a3e635]">
+                      <p className="text-sm font-bold uppercase text-[#5BAD8F]">
                         Coach Verified PR
                       </p>
                       <p className="text-lg font-black tabular-nums text-white">
                         {formatLiftAmount(exercise, record.weight_lifted)}
                       </p>
                       {verifiedDate && (
-                        <p className="text-xs text-zinc-400">Verified {verifiedDate}</p>
+                        <p className="text-xs text-white/45">Verified {verifiedDate}</p>
                       )}
                     </div>
                   </div>
@@ -386,7 +385,7 @@ export function ProfileClient({
                   />
                   <Button
                     type="button"
-                    variant="dark"
+                    variant={exercise === "Long Run" ? "primary" : "dark"}
                     className="h-[46px] shrink-0 px-6 text-xs"
                     onClick={() => submitLift(exercise)}
                     disabled={pending || !lifts[exercise]}
@@ -396,7 +395,7 @@ export function ProfileClient({
                 </div>
 
                 {record && (
-                  <p className="mt-2 text-xs text-zinc-400">
+                  <p className="mt-2 text-xs text-white/45">
                     {submittedDate ? (
                       <>
                         Last submitted {submittedDate} ·{" "}
@@ -433,17 +432,17 @@ export function ProfileClient({
         </div>
       </section>
 
-      <section className="flex overflow-hidden rounded-2xl border border-zinc-800">
-        <div className="flex-1 border-r border-zinc-800 p-6">
+      <section className={cn(clientCard, "flex overflow-hidden p-0")}>
+        <div className={cn("flex-1 border-r border-white/10 p-6")}>
           <FieldLabel>Current Tier</FieldLabel>
           <p className="mt-2 text-3xl font-bold text-white">{user.tier_level}</p>
         </div>
-        <div className="flex-1 border-r border-zinc-800 p-6">
+        <div className="flex-1 border-r border-white/10 p-6">
           <FieldLabel>Member Since</FieldLabel>
           <p className="mt-2 text-3xl font-bold text-white">{memberSince}</p>
         </div>
         <div className="flex-1 p-6">
-          <FieldLabel>Expiration Date</FieldLabel>
+          <FieldLabel>Expiration</FieldLabel>
           <p className="mt-2 text-3xl font-bold text-white">{expirationDate}</p>
         </div>
       </section>
