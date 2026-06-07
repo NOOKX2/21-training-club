@@ -9,7 +9,6 @@ import {
   LayoutGrid,
   LogOut,
   MessageCircle,
-  Pencil,
   Timer,
   User as UserIcon,
 } from "lucide-react";
@@ -148,14 +147,6 @@ function AppShellHeader({ user }: { user: User }) {
                 <p className="font-bold text-white">{user.name}</p>
                 <p className="text-xs text-white/45">{user.email}</p>
               </div>
-              <Link
-                href="/profile"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm text-white hover:bg-white/5"
-              >
-                <Pencil className="h-4 w-4" />
-                Edit Profile
-              </Link>
               <button
                 type="button"
                 onClick={logout}
@@ -193,7 +184,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="relative z-10 mx-auto max-w-[750px] px-6 pt-[120px] pb-16">
+        <main className="relative z-10 mx-auto w-full max-w-[900px] px-6 pt-[120px] pb-16">
           {children}
         </main>
       </div>

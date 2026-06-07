@@ -174,7 +174,7 @@ export function WorkoutClient({
 
       <div className="space-y-4">
         {dayData?.exercises.map((ex) => (
-          <div key={ex.id} className={cn(clientCard, "px-6 py-6 sm:px-7")}>
+          <div key={ex.id} className={cn(clientCard, "w-full px-5 py-6 sm:px-6")}>
             <h3 className="font-[family-name:var(--font-inter)] text-lg font-extrabold tracking-[-0.03em] text-white">
               {ex.name}
             </h3>
@@ -182,9 +182,16 @@ export function WorkoutClient({
               Target: {ex.target_sets} sets × {ex.target_reps} reps
             </p>
 
-            <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div
+              className={cn(
+                "mb-4 grid w-full gap-3 sm:gap-4",
+                ex.demo_video || ex.image_url
+                  ? "grid-cols-2 sm:grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)]"
+                  : "grid-cols-2"
+              )}
+            >
               {(ex.demo_video || ex.image_url) && (
-                <div className="shrink-0">
+                <div className="col-span-2 sm:col-span-1">
                   {ex.demo_video ? (
                     <ExerciseVideoPlayer video={ex.demo_video} title={ex.name} compact />
                   ) : (
@@ -192,46 +199,46 @@ export function WorkoutClient({
                     <img
                       src={ex.image_url!}
                       alt={ex.name}
-                      className="h-28 w-44 rounded-xl object-cover"
+                      className="h-28 w-full max-w-[11rem] rounded-xl object-cover"
                     />
                   )}
                 </div>
               )}
 
-              <div className="flex min-w-0 flex-1 gap-3">
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <label className={clientFieldLabel}>Weight (kg)</label>
-                  <StepperInput
-                    value={logs[ex.id]?.actual_weight ?? ""}
-                    onChange={(actual_weight) =>
-                      setLogs({
-                        ...logs,
-                        [ex.id]: {
-                          actual_weight,
-                          actual_reps: logs[ex.id]?.actual_reps ?? "",
-                        },
-                      })
-                    }
-                    step={1}
-                  />
-                </div>
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <label className={clientFieldLabel}>Reps</label>
-                  <StepperInput
-                    value={logs[ex.id]?.actual_reps ?? ""}
-                    onChange={(actual_reps) =>
-                      setLogs({
-                        ...logs,
-                        [ex.id]: {
-                          actual_reps,
-                          actual_weight: logs[ex.id]?.actual_weight ?? "",
-                        },
-                      })
-                    }
-                    step={1}
-                    inputMode="numeric"
-                  />
-                </div>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <label className={clientFieldLabel}>Weight (kg)</label>
+                <StepperInput
+                  className="w-full"
+                  value={logs[ex.id]?.actual_weight ?? ""}
+                  onChange={(actual_weight) =>
+                    setLogs({
+                      ...logs,
+                      [ex.id]: {
+                        actual_weight,
+                        actual_reps: logs[ex.id]?.actual_reps ?? "",
+                      },
+                    })
+                  }
+                  step={1}
+                />
+              </div>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <label className={clientFieldLabel}>Reps</label>
+                <StepperInput
+                  className="w-full"
+                  value={logs[ex.id]?.actual_reps ?? ""}
+                  onChange={(actual_reps) =>
+                    setLogs({
+                      ...logs,
+                      [ex.id]: {
+                        actual_reps,
+                        actual_weight: logs[ex.id]?.actual_weight ?? "",
+                      },
+                    })
+                  }
+                  step={1}
+                  inputMode="numeric"
+                />
               </div>
             </div>
 
