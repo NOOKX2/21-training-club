@@ -33,6 +33,7 @@ export function CoachClient({
   const [attachment, setAttachment] = useState("");
   const [reportsOpen, setReportsOpen] = useState(false);
   const [reports, setReports] = useState(initialReports);
+  const [sending, setSending] = useState(false);
 
   const coach = coaches.find((c) => c.id === coachId);
   const coachName = coach?.name ?? "Coach";
@@ -43,6 +44,7 @@ export function CoachClient({
     .join("")
     .slice(0, 2)
     .toUpperCase();
+  const reportCount = reports.length;
 
   useEffect(() => {
     markChatNotificationsRead({ isAdmin: false }).catch(() => {});
@@ -53,20 +55,25 @@ export function CoachClient({
   }, [initialReports]);
 
   async function send() {
-    if ((!content.trim() && !attachment) || !coachId) return;
-    await api("messages", {
-      method: "POST",
-      body: JSON.stringify({
-        user_id: userId,
-        coach_id: coachId,
-        sender: "user",
-        content: content.trim() || "[Attachment]",
-        attachment_base64: attachment,
-      }),
-    });
-    setContent("");
-    setAttachment("");
-    router.refresh();
+    if ((!content.trim() && !attachment) || !coachId || sending) return;
+    setSending(true);
+    try {
+      await api("messages", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: userId,
+          coach_id: coachId,
+          sender: "user",
+          content: content.trim() || "[Attachment]",
+          attachment_base64: attachment,
+        }),
+      });
+      setContent("");
+      setAttachment("");
+      router.refresh();
+    } finally {
+      setSending(false);
+    }
   }
 
   function onAttach(f: File | null) {
@@ -80,46 +87,61 @@ export function CoachClient({
     <div
       className={cn(
         clientCard,
-        "flex min-h-[calc(100vh-9.5rem)] flex-col overflow-hidden rounded-[20px]"
+        "-mx-4 flex flex-col overflow-hidden rounded-none sm:mx-0 sm:rounded-[20px]",
+        "h-[calc(100dvh-84px-5.5rem-env(safe-area-inset-bottom,0px))]",
+        "lg:h-[calc(100vh-9.5rem)]"
       )}
     >
-      <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
-        <div className="flex items-center gap-3.5">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-3 sm:px-6 sm:py-4">
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
           {coach?.profile_image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={coach.profile_image_url}
               alt=""
-              className="h-12 w-12 rounded-full object-cover ring-2 ring-white/10"
+              className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white/10 sm:h-12 sm:w-12"
             />
           ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#6B93B8] text-sm font-bold text-white">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#6B93B8] text-xs font-bold text-white sm:h-12 sm:w-12 sm:text-sm">
               {initials}
             </div>
           )}
-          <div>
-            <p className="text-base font-bold text-white">{coachName}</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-[#5BAD8F]">
-              <span aria-hidden>●</span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-white sm:text-base">{coachName}</p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#5BAD8F] sm:text-xs">
+              <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[#5BAD8F]" />
               Online
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <Button
             type="button"
             variant="outline"
-            className="h-9 px-3 text-[10px]"
+            className="relative h-9 w-9 px-0 sm:w-auto sm:px-3 sm:text-[10px]"
             onClick={() => setReportsOpen(true)}
+            aria-label="Report from Coach"
+            title="Report from Coach"
           >
-            <FileText className="mr-1.5 h-3.5 w-3.5" />
-            Report from Coach
+            <FileText className="h-4 w-4 sm:mr-1.5 sm:h-3.5 sm:w-3.5" />
+            <span className="hidden sm:inline">Report from Coach</span>
+            {reportCount > 0 ? (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#a3e635] px-1 text-[9px] font-bold text-black">
+                {reportCount > 9 ? "9+" : reportCount}
+              </span>
+            ) : null}
           </Button>
           {tierLevel === "Tier 3" && (
             <Link href="/profile">
-              <Button type="button" variant="outline" className="h-9 px-3 text-[10px]">
-                <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" />
-                Form Check
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 w-9 px-0 sm:w-auto sm:px-3 sm:text-[10px]"
+                aria-label="Form Check"
+                title="Form Check"
+              >
+                <ClipboardCheck className="h-4 w-4 sm:mr-1.5 sm:h-3.5 sm:w-3.5" />
+                <span className="hidden sm:inline">Form Check</span>
               </Button>
             </Link>
           )}
@@ -143,10 +165,10 @@ export function CoachClient({
       />
 
       {attachment && (
-        <div className="border-t border-white/10 px-5 py-2">
+        <div className="shrink-0 border-t border-white/10 px-3 py-2 sm:px-5">
           <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/40 p-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={attachment} alt="Preview" className="h-14 w-14 rounded-lg object-cover" />
+            <img src={attachment} alt="Preview" className="h-12 w-12 rounded-lg object-cover sm:h-14 sm:w-14" />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-white">Image attached</p>
               <p className="text-[10px] text-white/45">Ready to send</p>
@@ -168,8 +190,9 @@ export function CoachClient({
         onContentChange={setContent}
         onSend={send}
         onAttach={onAttach}
-        canSend={Boolean(content.trim() || attachment)}
-        sendLabel="Send"
+        canSend={Boolean(content.trim() || attachment) && !sending}
+        sendLabel={sending ? "Sending…" : "Send"}
+        placeholder="Message your coach…"
       />
     </div>
   );

@@ -15,13 +15,22 @@ export function ClientPageHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-wrap items-end justify-between gap-4", className)}>
-      <div>
+    <div
+      className={cn(
+        "flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between",
+        className
+      )}
+    >
+      <div className="min-w-0">
         <p className={clientPageEyebrow}>{eyebrow}</p>
         <h1 className={cn(clientPageTitle, "mt-2")}>{title}</h1>
         {subtitle ? <p className="mt-1.5 text-sm text-white/45">{subtitle}</p> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
+      {actions ? (
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+          {actions}
+        </div>
+      ) : null}
     </div>
   );
 }

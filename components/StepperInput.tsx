@@ -11,6 +11,7 @@ export function StepperInput({
   placeholder = "0",
   className,
   inputMode = "decimal",
+  compact = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -19,6 +20,7 @@ export function StepperInput({
   placeholder?: string;
   className?: string;
   inputMode?: "decimal" | "numeric";
+  compact?: boolean;
 }) {
   function adjust(delta: number) {
     const current = value === "" ? 0 : Number(value);
@@ -33,7 +35,7 @@ export function StepperInput({
       <button
         type="button"
         onClick={() => adjust(-step)}
-        className={clientSpinBtn}
+        className={cn(clientSpinBtn, compact && "h-9 w-7 text-base sm:h-11 sm:w-[38px] sm:text-lg")}
         aria-label="Decrease"
       >
         −
@@ -44,12 +46,15 @@ export function StepperInput({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="min-w-0 flex-1 bg-transparent px-3.5 py-3 text-[15px] font-semibold text-white placeholder:text-white/30 focus:outline-none"
+        className={cn(
+          "min-w-0 flex-1 bg-transparent font-semibold text-white placeholder:text-white/30 focus:outline-none",
+          compact ? "px-1 py-2 text-sm sm:px-3.5 sm:py-3 sm:text-[15px]" : "px-3.5 py-3 text-[15px]"
+        )}
       />
       <button
         type="button"
         onClick={() => adjust(step)}
-        className={clientSpinBtn}
+        className={cn(clientSpinBtn, compact && "h-9 w-7 text-base sm:h-11 sm:w-[38px] sm:text-lg")}
         aria-label="Increase"
       >
         +

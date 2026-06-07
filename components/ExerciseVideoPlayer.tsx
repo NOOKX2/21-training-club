@@ -79,12 +79,14 @@ export function ExerciseVideoPlayer({
   compact = false,
   expandable,
   streamBasePath = "/api/exercise-video",
+  className,
 }: {
   video: ExerciseVideoSource;
   title?: string;
   compact?: boolean;
   expandable?: boolean;
   streamBasePath?: string;
+  className?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const playable = hasPlayableVideo(video);
@@ -109,7 +111,10 @@ export function ExerciseVideoPlayer({
       <div
         className={
           compact
-            ? "flex h-28 w-44 items-center justify-center rounded-xl bg-zinc-900 text-xs text-zinc-600"
+            ? cn(
+                "flex h-28 w-44 items-center justify-center rounded-xl bg-zinc-900 text-xs text-zinc-600",
+                className
+              )
             : "flex aspect-video w-full items-center justify-center rounded-xl bg-zinc-900 text-sm text-zinc-600"
         }
       >
@@ -118,7 +123,7 @@ export function ExerciseVideoPlayer({
     );
   }
 
-  const compactClass = "h-28 w-44 rounded-xl bg-black object-contain";
+  const compactClass = cn("h-28 w-44 rounded-xl bg-black object-contain", className);
   const fullClass = "aspect-video w-full rounded-xl bg-black object-contain";
 
   if (!compact) {

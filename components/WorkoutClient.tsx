@@ -139,7 +139,7 @@ export function WorkoutClient({
         </select>
       </div>
 
-      <div className="mb-9 flex flex-wrap gap-2">
+      <div className="mb-9 flex gap-1 sm:flex-wrap sm:gap-2">
         {[1, 2, 3, 4, 5, 6, 7].map((d) => {
           const active = day === d;
           return (
@@ -147,11 +147,15 @@ export function WorkoutClient({
               key={d}
               type="button"
               onClick={() => navigate(week, d)}
-              className={cn(clientDayTab, active && clientDayTabActive)}
+              className={cn(
+                clientDayTab,
+                "min-w-0 flex-1 rounded-[10px] px-1 py-2 sm:min-w-[70px] sm:flex-none sm:rounded-[14px] sm:px-[18px] sm:py-3.5",
+                active && clientDayTabActive
+              )}
             >
               <span
                 className={cn(
-                  "text-[9px] font-bold uppercase tracking-[0.18em]",
+                  "text-[7px] font-bold uppercase tracking-[0.1em] sm:text-[9px] sm:tracking-[0.18em]",
                   active ? "text-black/50" : "text-white/45"
                 )}
               >
@@ -159,7 +163,7 @@ export function WorkoutClient({
               </span>
               <span
                 className={cn(
-                  "font-[family-name:var(--font-inter)] text-[26px] font-extrabold leading-none tracking-[-0.04em]",
+                  "font-[family-name:var(--font-inter)] text-lg font-extrabold leading-none tracking-[-0.04em] sm:text-[26px]",
                   active ? "text-black" : "text-white/60"
                 )}
               >
@@ -184,30 +188,36 @@ export function WorkoutClient({
 
             <div
               className={cn(
-                "mb-4 grid w-full gap-3 sm:gap-4",
+                "mb-4 grid w-full gap-2 sm:gap-4",
                 ex.demo_video || ex.image_url
-                  ? "grid-cols-2 sm:grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)]"
+                  ? "grid-cols-[4.75rem_minmax(0,1fr)_minmax(0,1fr)] sm:grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)]"
                   : "grid-cols-2"
               )}
             >
               {(ex.demo_video || ex.image_url) && (
-                <div className="col-span-2 sm:col-span-1">
+                <div className="flex min-w-0 items-end">
                   {ex.demo_video ? (
-                    <ExerciseVideoPlayer video={ex.demo_video} title={ex.name} compact />
+                    <ExerciseVideoPlayer
+                      video={ex.demo_video}
+                      title={ex.name}
+                      compact
+                      className="h-[4.75rem] w-[4.75rem] rounded-lg sm:h-28 sm:w-44 sm:rounded-xl"
+                    />
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={ex.image_url!}
                       alt={ex.name}
-                      className="h-28 w-full max-w-[11rem] rounded-xl object-cover"
+                      className="h-[4.75rem] w-[4.75rem] shrink-0 rounded-lg object-cover sm:h-28 sm:w-44 sm:rounded-xl"
                     />
                   )}
                 </div>
               )}
 
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <label className={clientFieldLabel}>Weight (kg)</label>
+              <div className="flex min-w-0 flex-col gap-1 sm:gap-1.5">
+                <label className={cn(clientFieldLabel, "truncate")}>Weight (kg)</label>
                 <StepperInput
+                  compact
                   className="w-full"
                   value={logs[ex.id]?.actual_weight ?? ""}
                   onChange={(actual_weight) =>
@@ -222,9 +232,10 @@ export function WorkoutClient({
                   step={1}
                 />
               </div>
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <label className={clientFieldLabel}>Reps</label>
+              <div className="flex min-w-0 flex-col gap-1 sm:gap-1.5">
+                <label className={cn(clientFieldLabel, "truncate")}>Reps</label>
                 <StepperInput
+                  compact
                   className="w-full"
                   value={logs[ex.id]?.actual_reps ?? ""}
                   onChange={(actual_reps) =>

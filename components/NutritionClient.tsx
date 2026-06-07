@@ -55,17 +55,10 @@ export function NutritionClient({
     <div className="space-y-6">
       <NutritionHeader selectedDate={selectedDate} isToday={isToday} />
 
-      <div className={cn(clientCard, "p-5")}>
-        <p className={clientSectionLabel}>7-Day Food Score</p>
-        <div className="mt-4">
-          <NutritionScoreChart dailyScores={chartScores} />
-        </div>
-      </div>
-
       {showDailyTotals && (
-        <div className={cn(clientCard, "p-5")}>
+        <div className={cn(clientCard, "p-4 sm:p-5")}>
           <p className={clientSectionLabel}>Daily Totals</p>
-          <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
             <div className={cn(clientCardInner, "px-4 py-4 text-center")}>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
                 Total Kcal
@@ -99,7 +92,7 @@ export function NutritionClient({
               )}
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-4">
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4">
             <MacroLimitBox label="Protein" consumed={totals.protein} limit={limits.protein} />
             <MacroLimitBox label="Carb" consumed={totals.carbs} limit={limits.carbs} />
             <MacroLimitBox label="Fat" consumed={totals.fat} limit={limits.fat} />
@@ -109,62 +102,127 @@ export function NutritionClient({
 
       <div>
         <p className={cn(clientSectionLabel, "mb-4")}>Today&apos;s Meals</p>
-        <div className={cn(clientCard, "overflow-hidden")}>
-          {meals.length === 0 ? (
+        {meals.length === 0 ? (
+          <div className={cn(clientCard, "overflow-hidden")}>
             <p className="p-8 text-center text-white/45">
               {isToday
                 ? "No meals logged today. Tap + Add Meal to submit to your coach."
                 : "No meals logged on this day."}
             </p>
-          ) : (
-            <ul className="divide-y divide-white/10">
-              {meals.map((m) => {
-                const ratingStyle =
-                  m.coach_rating != null ? coachRatingStyle(m.coach_rating) : null;
-                return (
-                  <li key={m.id} className="flex gap-4 px-6 py-5">
-                    {m.photo_base64 ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={m.photo_base64}
-                        alt={`Meal ${m.meal_number}`}
-                        className="h-20 w-20 shrink-0 rounded-xl object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-black/40 text-xs text-white/30">
-                        No photo
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-white">{mealDisplayName(m)}</p>
-                      {m.description && (
-                        <p className="mt-1 text-sm text-white/45">{m.description}</p>
-                      )}
-                      <p className="mt-2 text-xs text-white/35">
-                        {m.coach_reviewed ? "Reviewed by coach" : "Pending coach review"}
-                      </p>
-                      {m.coach_reviewed && formatMealMacros(m) && (
-                        <p className="mt-2 text-sm text-white/45">{formatMealMacros(m)}</p>
-                      )}
-                      {m.coach_reviewed && m.coach_feedback && (
-                        <p className="mt-1 text-sm text-white/60">{m.coach_feedback}</p>
-                      )}
-                    </div>
-                    {m.coach_reviewed && m.coach_rating != null && ratingStyle && (
-                      <div className="shrink-0 text-right">
-                        <p className={`text-sm font-semibold ${ratingStyle.className}`}>
-                          {m.coach_rating}/5 — {ratingStyle.label}
-                        </p>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
+          </div>
+        ) : (
+          <>
+            <ul className="grid grid-cols-2 gap-2 sm:gap-3 lg:hidden">
+              {meals.map((m) => (
+                <MealGridCard key={m.id} meal={m} />
+              ))}
             </ul>
-          )}
+            <div className={cn(clientCard, "hidden overflow-hidden lg:block")}>
+              <ul className="divide-y divide-white/10">
+                {meals.map((m) => (
+                  <MealListRow key={m.id} meal={m} />
+                ))}
+              </ul>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className={cn(clientCard, "p-4 sm:p-5")}>
+        <p className={clientSectionLabel}>7-Day Food Score</p>
+        <div className="mt-4">
+          <NutritionScoreChart dailyScores={chartScores} />
         </div>
       </div>
     </div>
+  );
+}
+
+function MealPhoto({ meal, className }: { meal: MealSubmission; className?: string }) {
+  if (meal.photo_base64) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={meal.photo_base64} alt={`Meal ${meal.meal_number}`} className={className} />
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-center bg-black/40 text-white/30",
+        className
+      )}
+    >
+      No photo
+    </div>
+  );
+}
+
+function MealGridCard({ meal }: { meal: MealSubmission }) {
+  const ratingStyle = meal.coach_rating != null ? coachRatingStyle(meal.coach_rating) : null;
+
+  return (
+    <li className={cn(clientCard, "flex flex-col overflow-hidden p-2.5 sm:p-3")}>
+      <MealPhoto
+        meal={meal}
+        className="aspect-square w-full rounded-lg object-cover text-[10px]"
+      />
+      <div className="mt-2 min-w-0 flex-1">
+        <p className="truncate text-sm font-bold text-white">{mealDisplayName(meal)}</p>
+        {meal.description ? (
+          <p className="mt-0.5 line-clamp-2 text-[11px] text-white/45">{meal.description}</p>
+        ) : null}
+        <p className="mt-1 text-[10px] text-white/35">
+          {meal.coach_reviewed ? "Reviewed" : "Pending"}
+        </p>
+        {meal.coach_reviewed && formatMealMacros(meal) ? (
+          <p className="mt-1 text-[11px] text-white/45">{formatMealMacros(meal)}</p>
+        ) : null}
+        {meal.coach_reviewed && meal.coach_feedback ? (
+          <p className="mt-1 line-clamp-2 text-[11px] text-white/60">{meal.coach_feedback}</p>
+        ) : null}
+        {meal.coach_reviewed && meal.coach_rating != null && ratingStyle ? (
+          <p className={`mt-1 text-[10px] font-semibold ${ratingStyle.className}`}>
+            {meal.coach_rating}/5 — {ratingStyle.label}
+          </p>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+function MealListRow({ meal }: { meal: MealSubmission }) {
+  const ratingStyle = meal.coach_rating != null ? coachRatingStyle(meal.coach_rating) : null;
+
+  return (
+    <li className="flex gap-4 px-6 py-5">
+      <MealPhoto
+        meal={meal}
+        className="h-20 w-20 shrink-0 rounded-xl object-cover text-xs"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="font-bold text-white">{mealDisplayName(meal)}</p>
+        {meal.description ? (
+          <p className="mt-1 text-sm text-white/45">{meal.description}</p>
+        ) : null}
+        <p className="mt-2 text-xs text-white/35">
+          {meal.coach_reviewed ? "Reviewed by coach" : "Pending coach review"}
+        </p>
+        {meal.coach_reviewed && formatMealMacros(meal) ? (
+          <p className="mt-2 text-sm text-white/45">{formatMealMacros(meal)}</p>
+        ) : null}
+        {meal.coach_reviewed && meal.coach_feedback ? (
+          <p className="mt-1 text-sm text-white/60">{meal.coach_feedback}</p>
+        ) : null}
+      </div>
+      {meal.coach_reviewed && meal.coach_rating != null && ratingStyle ? (
+        <div className="shrink-0 text-right">
+          <p className={`text-sm font-semibold ${ratingStyle.className}`}>
+            {meal.coach_rating}/5 — {ratingStyle.label}
+          </p>
+        </div>
+      ) : null}
+    </li>
   );
 }
 

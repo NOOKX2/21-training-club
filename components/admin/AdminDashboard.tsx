@@ -11,7 +11,7 @@ export function AdminDashboard({
 }) {
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold uppercase tracking-wide text-white">
+      <h1 className="text-xl font-bold uppercase tracking-wide text-white sm:text-2xl">
         Dashboard Overview
       </h1>
 
@@ -69,7 +69,7 @@ export function AdminDashboard({
             activity.map((a) => (
               <div
                 key={a.email}
-                className="flex items-center justify-between px-5 py-4"
+                className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
               >
                 <div>
                   <p className="font-semibold text-white">{a.name}</p>

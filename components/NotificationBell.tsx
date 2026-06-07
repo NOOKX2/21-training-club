@@ -129,7 +129,7 @@ export function NotificationBell({ isAdmin = false }: { isAdmin?: boolean }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-50 w-80 overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950 shadow-2xl">
+        <div className="absolute right-0 top-10 z-50 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-white">

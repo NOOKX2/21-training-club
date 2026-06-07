@@ -88,10 +88,11 @@ export function NutritionHeader({
             </button>
           )}
           {showAddButton && isToday && (
-            <Link href="/nutrition/add">
-              <Button type="button" className="h-11 gap-2 px-5 text-xs">
+            <Link href="/nutrition/add" className="w-full sm:w-auto">
+              <Button type="button" className="h-11 w-full gap-2 px-4 text-xs sm:w-auto sm:px-5">
                 <Plus className="h-4 w-4" />
-                Add Meal
+                <span className="sm:hidden">Add</span>
+                <span className="hidden sm:inline">Add Meal</span>
               </Button>
             </Link>
           )}

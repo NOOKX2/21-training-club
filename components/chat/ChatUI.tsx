@@ -1,6 +1,6 @@
 "use client";
 
-import { Paperclip } from "lucide-react";
+import { Paperclip, Send } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { User } from "lucide-react";
 import type { Message } from "@/lib/data";
@@ -83,7 +83,7 @@ function ChatBubble({
 
       <div
         className={cn(
-          "flex max-w-[min(85%,22rem)] flex-col gap-1",
+          "flex max-w-[min(88%,18rem)] flex-col gap-1 sm:max-w-[min(85%,22rem)]",
           isOwn ? "items-end" : "items-start"
         )}
       >
@@ -122,7 +122,9 @@ function ChatBubble({
           )}
         </div>
 
-        <span className="px-1 text-[10px] text-white/35">{formatTime(message.timestamp)}</span>
+        <span className="px-1 text-[11px] text-white/45 sm:text-[10px] sm:text-white/35">
+          {formatTime(message.timestamp)}
+        </span>
       </div>
     </div>
   );
@@ -168,17 +170,18 @@ export function ChatMessageList({
   let lastDate = "";
 
   return (
-    <div className="flex-1 space-y-5 overflow-y-auto px-5 py-6 sm:px-6">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4 sm:px-6 sm:py-6">
+      <div className="space-y-3 sm:space-y-5">
       {messages.map((message) => {
         const key = dateKey(message.timestamp);
         const showDate = key !== lastDate;
         lastDate = key;
 
         return (
-          <div key={message.id} className="space-y-5">
+          <div key={message.id} className="space-y-3 sm:space-y-5">
             {showDate && (
-              <div className="flex justify-center">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">
+              <div className="flex justify-center py-1">
+                <span className="rounded-full bg-white/[0.06] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/50">
                   {formatDateLabel(message.timestamp)}
                 </span>
               </div>
@@ -194,6 +197,7 @@ export function ChatMessageList({
           </div>
         );
       })}
+      </div>
       <div ref={bottomRef} />
     </div>
   );
@@ -224,13 +228,13 @@ export function ChatComposer({
   return (
     <div
       className={cn(
-        "border-t border-white/10 px-5 py-4",
-        isCoach ? "bg-black/30" : "bg-black/35 backdrop-blur-md"
+        "shrink-0 border-t border-white/10 px-3 py-3 sm:px-5 sm:py-4",
+        isCoach ? "bg-black/40 backdrop-blur-md" : "bg-black/35 backdrop-blur-md"
       )}
     >
       <div
         className={cn(
-          "flex items-center gap-3 rounded-2xl border border-white/10 p-2",
+          "flex items-end gap-2 rounded-2xl border border-white/10 p-1.5 sm:items-center sm:gap-3 sm:p-2",
           isCoach ? "bg-black/50" : "bg-black/45"
         )}
       >
@@ -238,11 +242,11 @@ export function ChatComposer({
           className={cn(
             "flex shrink-0 cursor-pointer items-center justify-center text-white/45 transition-colors hover:text-white",
             isCoach
-              ? "h-10 w-10 rounded-full border border-white/10 bg-white/[0.06] hover:bg-white/10"
+              ? "mb-0.5 h-9 w-9 rounded-full border border-white/10 bg-white/[0.06] hover:bg-white/10 sm:mb-0 sm:h-10 sm:w-10"
               : "h-10 w-10 rounded-xl hover:bg-white/5"
           )}
         >
-          <Paperclip className="h-5 w-5" />
+          <Paperclip className="h-4 w-4 sm:h-5 sm:w-5" />
           <input
             type="file"
             accept="image/*"
@@ -258,23 +262,25 @@ export function ChatComposer({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              onSend();
+              if (ready) onSend();
             }
           }}
-          className="max-h-32 min-h-[2.5rem] flex-1 resize-none bg-transparent px-1 py-2 text-sm text-white placeholder:text-white/35 focus:outline-none"
+          className="max-h-32 min-h-[2.25rem] flex-1 resize-none bg-transparent px-1 py-2 text-sm leading-snug text-white placeholder:text-white/35 focus:outline-none sm:min-h-[2.5rem]"
         />
         <button
           type="button"
           onClick={onSend}
           disabled={!ready}
+          aria-label={sendLabel}
           className={cn(
-            "shrink-0 font-bold uppercase tracking-wide transition-opacity disabled:cursor-not-allowed disabled:opacity-40",
+            "mb-0.5 flex shrink-0 items-center justify-center font-bold uppercase tracking-wide transition-opacity disabled:cursor-not-allowed disabled:opacity-40 sm:mb-0",
             isCoach
-              ? "rounded-xl bg-white px-5 py-2.5 text-xs text-black hover:bg-zinc-200"
-              : "flex h-10 items-center justify-center rounded-xl bg-white px-5 text-xs text-black hover:bg-zinc-200"
+              ? "h-9 w-9 rounded-xl bg-white text-black hover:bg-zinc-200 sm:h-auto sm:w-auto sm:px-5 sm:py-2.5 sm:text-xs"
+              : "h-10 rounded-xl bg-white px-5 text-xs text-black hover:bg-zinc-200"
           )}
         >
-          {sendLabel}
+          <Send className="h-4 w-4 sm:hidden" />
+          <span className="hidden sm:inline">{sendLabel}</span>
         </button>
       </div>
     </div>

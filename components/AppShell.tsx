@@ -33,12 +33,136 @@ const navItems = [
   { href: "/progress", label: "Progress", icon: Activity },
   { href: "/coach", label: "Coach", icon: MessageCircle },
   { href: "/profile", label: "Profile", icon: UserIcon },
-];
+] as const;
+
+function isNavActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 function tierBadgeLabel(tier: string) {
   if (tier === "Tier 3") return "TIER 3: VIP";
   if (tier === "Admin") return "ADMIN";
   return tier.toUpperCase();
+}
+
+function AccountMenu({
+  user,
+  menuOpen,
+  setMenuOpen,
+  menuRef,
+  onLogout,
+}: {
+  user: User;
+  menuOpen: boolean;
+  setMenuOpen: (open: boolean | ((open: boolean) => boolean)) => void;
+  menuRef: React.RefObject<HTMLDivElement | null>;
+  onLogout: () => void;
+}) {
+  const pathname = usePathname();
+  const isVip = user.tier_level === "Tier 3" || user.tier_level === "Admin";
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setMenuOpen((open) => !open)}
+        className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black/50"
+        aria-label="Account menu"
+        aria-expanded={menuOpen}
+      >
+        {user.profile_photo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={user.profile_photo_url} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <UserIcon className="h-4 w-4 text-white/45" />
+        )}
+      </button>
+      {menuOpen && (
+        <div className="absolute right-0 top-11 z-50 w-56 overflow-hidden rounded-2xl border border-white/10 bg-black/90 py-2 shadow-xl backdrop-blur-md">
+          <div className="border-b border-white/10 px-4 pb-3">
+            <p className="font-bold text-white">{user.name}</p>
+            <p className="text-xs text-white/45">{user.email}</p>
+            {isVip ? (
+              <span className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-[#C5F135] px-2 py-1 text-[9px] font-bold tracking-wide text-black lg:hidden">
+                <Crown className="h-3.5 w-3.5" />
+                {tierBadgeLabel(user.tier_level)}
+              </span>
+            ) : null}
+          </div>
+          <Link
+            href="/profile"
+            onClick={() => setMenuOpen(false)}
+            className={cn(
+              "hidden w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-white/5 lg:flex",
+              isNavActive(pathname, "/profile") ? "text-white" : "text-white/70"
+            )}
+          >
+            <UserIcon className="h-4 w-4" />
+            Profile
+          </Link>
+          {isAdminRole(user.role) && (
+            <Link
+              href="/admin"
+              onClick={() => setMenuOpen(false)}
+              className={cn(
+                "flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-white/5",
+                pathname.startsWith("/admin") ? "text-white" : "text-white/70"
+              )}
+            >
+              Admin
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-white/5"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobileBottomNav({ pathname }: { pathname: string }) {
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-black/90 backdrop-blur-xl lg:hidden"
+      aria-label="Main navigation"
+    >
+      <div
+        className="mx-auto flex max-w-lg items-stretch px-1"
+        style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+      >
+        {navItems.map(({ href, label, icon: Icon }) => {
+          const active = isNavActive(pathname, href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2.5 transition-colors",
+                active ? "text-white" : "text-white/40 active:text-white/70"
+              )}
+            >
+              <Icon
+                className={cn("h-5 w-5", active ? "stroke-white" : "stroke-current")}
+                strokeWidth={active ? 2.25 : 1.75}
+              />
+              <span className="max-w-full truncate text-[9px] font-semibold tracking-[0.06em] uppercase">
+                {label}
+              </span>
+              {active ? (
+                <span className="absolute bottom-1 h-0.5 w-5 rounded-full bg-[#6B93B8]" />
+              ) : null}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
 }
 
 function AppShellHeader({ user }: { user: User }) {
@@ -69,24 +193,25 @@ function AppShellHeader({ user }: { user: User }) {
   if (!streakStatus) return null;
 
   return (
-    <div className="grid min-h-[69px] grid-cols-[1fr_auto] items-center gap-x-2 py-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-4">
-      {/* Left: streak badges */}
+    <div className="flex items-center gap-2 py-3 lg:grid lg:min-h-[69px] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center lg:gap-x-4 lg:py-4">
       <div className="hidden min-w-0 justify-self-start lg:block">
         <MuscleStreakBadges status={streakStatus} compact />
       </div>
 
-      {/* Center: logo + nav */}
-      <div className="flex min-w-0 flex-wrap items-center justify-center gap-1 sm:gap-2">
-        <ClientBrandLogo compact className="mr-2 sm:mr-6 lg:mr-10" />
-        <nav className="flex flex-wrap items-center justify-center gap-1 sm:gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none lg:justify-center">
+        <ClientBrandLogo compact className="shrink-0 lg:mr-10" />
+        <div className="min-w-0 flex-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:hidden">
+          <MuscleStreakBadges status={streakStatus} compact />
+        </div>
+        <nav className="hidden items-center justify-center gap-2 lg:flex">
           {navItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
+            const active = isNavActive(pathname, href);
             return (
               <Link
                 key={href}
                 href={href}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-[10px] px-3 py-2 transition-colors sm:px-[18px]",
+                  "flex flex-col items-center gap-1 rounded-[10px] px-[18px] py-2 transition-colors",
                   active
                     ? cn(clientGlassNav, "text-white")
                     : "text-white/45 hover:bg-white/[0.07] hover:text-white"
@@ -118,46 +243,21 @@ function AppShellHeader({ user }: { user: User }) {
         </nav>
       </div>
 
-      {/* Right: notifications + account */}
-      <div className="flex shrink-0 items-center justify-self-end gap-2 sm:gap-3">
+      <div className="flex shrink-0 items-center gap-2 lg:gap-3 lg:justify-self-end">
         <NotificationBell />
         {isVip ? (
-          <span className="hidden items-center gap-1.5 rounded-md bg-[#C5F135] px-2 py-1 text-[9px] font-bold tracking-wide text-black md:flex">
+          <span className="hidden items-center gap-1.5 rounded-md bg-[#C5F135] px-2 py-1 text-[9px] font-bold tracking-wide text-black lg:flex">
             <Crown className="h-3.5 w-3.5" />
             {tierBadgeLabel(user.tier_level)}
           </span>
         ) : null}
-        <div className="relative" ref={menuRef}>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((o) => !o)}
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black/50"
-            aria-label="Account menu"
-          >
-            {user.profile_photo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.profile_photo_url} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <UserIcon className="h-4 w-4 text-white/45" />
-            )}
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-11 z-50 w-56 overflow-hidden rounded-2xl border border-white/10 bg-black/90 py-2 shadow-xl backdrop-blur-md">
-              <div className="border-b border-white/10 px-4 pb-3">
-                <p className="font-bold text-white">{user.name}</p>
-                <p className="text-xs text-white/45">{user.email}</p>
-              </div>
-              <button
-                type="button"
-                onClick={logout}
-                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-white/5"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
-            </div>
-          )}
-        </div>
+        <AccountMenu
+          user={user}
+          menuOpen={menuOpen}
+          setMenuOpen={setMenuOpen}
+          menuRef={menuRef}
+          onLogout={logout}
+        />
       </div>
     </div>
   );
@@ -172,21 +272,27 @@ export function AppShell({
   muscleStatus: DailyMuscleStatus;
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
   return (
     <MuscleStreakProvider initialStatus={muscleStatus}>
       <div className="relative min-h-screen bg-[#0d0d0d] font-[family-name:var(--font-dm-sans)] text-[#F0F4F8]">
         <ClientAppBackground />
 
         <header className="fixed top-0 right-0 left-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-xl">
-          <div className="mx-auto w-full max-w-[1440px] px-8 sm:px-10 lg:px-14 xl:px-16">
+          <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-14 xl:px-16">
             <AppShellHeader user={user} />
             <PromoMarquee />
           </div>
         </header>
 
-        <main className="relative z-10 mx-auto w-full max-w-[900px] px-6 pt-[120px] pb-16">
+        <main
+          className="relative z-10 mx-auto w-full max-w-[900px] px-4 pt-[84px] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:px-6 lg:px-6 lg:pt-[120px] lg:pb-16"
+        >
           {children}
         </main>
+
+        <MobileBottomNav pathname={pathname} />
       </div>
     </MuscleStreakProvider>
   );

@@ -43,12 +43,17 @@ function ComparePhotoColumn({
   const src = photo.photo_base64 ?? photo.photo_url ?? "";
 
   return (
-    <div className="space-y-3">
-      <FieldLabel>{label}</FieldLabel>
+    <div className="min-w-0 space-y-2 sm:space-y-3">
+      <span className="block text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45 sm:text-[10px] sm:tracking-[0.18em]">
+        {label}
+      </span>
       <select
         value={selectedId}
         onChange={(e) => onSelect(e.target.value)}
-        className={cn("w-full px-3 py-2.5 text-sm text-white focus:outline-none", clientField)}
+        className={cn(
+          "w-full min-w-0 px-1.5 py-2 text-[10px] text-white focus:outline-none sm:px-3 sm:py-2.5 sm:text-sm",
+          clientField
+        )}
       >
         {photos.map((p) => (
           <option key={p.id} value={p.id}>
@@ -61,20 +66,22 @@ function ComparePhotoColumn({
         <img
           src={src}
           alt={label}
-          className="aspect-square w-full rounded-xl object-cover"
+          className="aspect-square w-full rounded-lg object-cover sm:rounded-xl"
         />
       ) : (
-        <div className="flex aspect-square w-full items-center justify-center rounded-xl bg-zinc-900 text-sm text-zinc-600">
+        <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-zinc-900 text-[10px] text-zinc-600 sm:rounded-xl sm:text-sm">
           No photo
         </div>
       )}
-      <div className="text-sm">
+      <div className="text-[11px] sm:text-sm">
         <p className="text-white">{formatPhotoDate(photo.date)}</p>
-        <p className="mt-1 text-zinc-400">
+        <p className="mt-0.5 text-zinc-400 sm:mt-1">
           {photo.weight != null ? `${photo.weight} kg` : "Weight not recorded"}
         </p>
         {photo.notes ? (
-          <p className="mt-1 text-xs text-zinc-500">{photo.notes}</p>
+          <p className="mt-0.5 line-clamp-2 text-[10px] text-zinc-500 sm:mt-1 sm:text-xs">
+            {photo.notes}
+          </p>
         ) : null}
       </div>
     </div>
@@ -407,7 +414,7 @@ export function ProgressClient({
             </p>
           </div>
         ) : (
-          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-6">
             <ComparePhotoColumn
               photos={photos}
               selectedId={beforePhotoId}
