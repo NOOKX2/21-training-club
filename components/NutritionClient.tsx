@@ -23,12 +23,16 @@ export function NutritionClient({
   limits,
   selectedDate,
   isToday,
+  showAddButton = true,
+  dateBasePath,
 }: {
   meals: MealSubmission[];
   scoreTrend: DailyNutritionScore[];
   limits: NutritionLimits;
   selectedDate: string;
   isToday: boolean;
+  showAddButton?: boolean;
+  dateBasePath?: string;
 }) {
   const totals = sumMealMacros(meals);
   const totalKcal = macrosToKcal(totals);
@@ -55,7 +59,12 @@ export function NutritionClient({
 
   return (
     <div className="space-y-6">
-      <NutritionHeader selectedDate={selectedDate} isToday={isToday} />
+      <NutritionHeader
+        selectedDate={selectedDate}
+        isToday={isToday}
+        showAddButton={showAddButton}
+        dateBasePath={dateBasePath}
+      />
 
       {showDailyTotals && (
         <div className={cn(clientCard, "p-4 sm:p-5")}>

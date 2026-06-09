@@ -161,6 +161,22 @@ export async function handleWorkouts(
       return json(logs);
     }
 
+    if (segments[1] === "day" && segments[2] && segments[3] && req.method === "GET") {
+      const user = await getCurrentUser(req);
+      const week = Math.min(4, Math.max(1, parseInt(segments[2], 10) || 1));
+      const day = Math.min(7, Math.max(1, parseInt(segments[3], 10) || 1));
+      const { getWorkoutPageData } = await import("../data");
+      const { days } = await getWorkoutPageData(user.id, user.email, week, day);
+      const dayData = days.find((entry) => entry.day === day);
+      return json({
+        week,
+        day,
+        exercises: dayData?.rest_day ? [] : (dayData?.exercises ?? []),
+        cardio: dayData?.rest_day ? null : (dayData?.cardio ?? null),
+        rest_day: Boolean(dayData?.rest_day),
+      });
+    }
+
     if (segments[1] === "custom" && segments[2] && segments[3] && req.method === "GET") {
       const user = await getCurrentUser(req);
       const program = await db.collection("custom_programs").findOne(

@@ -18,6 +18,8 @@ import { ProfileToast } from "@/components/profile/ProfileToast";
 import { Button } from "@/components/ui/Button";
 import { Input, FieldLabel } from "@/components/ui/Input";
 import { useLanguage } from "@/components/LanguageProvider";
+import { markFriendRequestNotificationsRead } from "@/components/NotificationBell";
+import { formatLocaleDate } from "@/lib/i18n/format";
 import { api } from "@/lib/api-client";
 import { clientCard, clientCardInner, clientSectionLabel } from "@/lib/client-ui";
 import type { FitnessInterest } from "@/lib/fitness-interests";
@@ -35,26 +37,6 @@ const LIFT_EXERCISES = [
   "Hip Thrusts",
   "Long Run",
 ] as const;
-
-function formatLiftDate(iso?: string) {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatExpirationDate(iso?: string | null) {
-  if (!iso) return "—";
-  const d = new Date(`${iso}T00:00:00.000Z`);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function recordFor(records: LiftRecord[], exercise: string) {
   return records.find((r) => r.exercise_name === exercise);
@@ -108,6 +90,7 @@ function LiftVerifiedCelebration({
 export function ProfileClient({
   user,
   initialRecords,
+  readOnly = false,
 }: {
   user: {
     id: string;
@@ -120,9 +103,10 @@ export function ProfileClient({
     tdee?: number | null;
   };
   initialRecords: LiftRecord[];
+  readOnly?: boolean;
 }) {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -174,6 +158,10 @@ export function ProfileClient({
   }, [loadSocial]);
 
   useEffect(() => {
+    markFriendRequestNotificationsRead().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     setRecords(initialRecords);
   }, [initialRecords]);
 
@@ -186,11 +174,14 @@ export function ProfileClient({
       setVerifiedCelebration({
         exercise: record.exercise_name,
         weight: record.weight_lifted,
-        verifiedDate: formatLiftDate(record.verified_at ?? record.submitted_at),
+        verifiedDate: formatLocaleDate(
+          record.verified_at ?? record.submitted_at,
+          locale
+        ),
       });
       break;
     }
-  }, [records]);
+  }, [records, locale]);
 
   useEffect(() => {
     setProfilePhotoUrl(user.profile_photo_url ?? "");
@@ -207,7 +198,8 @@ export function ProfileClient({
 
   const memberSince =
     user.created_at?.slice(0, 4) ?? new Date().getFullYear().toString();
-  const expirationDate = formatExpirationDate(user.access_expires_at);
+  const expirationDate =
+    formatLocaleDate(user.access_expires_at, locale) ?? "—";
 
   async function saveProfile() {
     setSaving(true);
@@ -290,14 +282,16 @@ export function ProfileClient({
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <ProfileToast message={toast} onClose={() => setToast(null)} />
-      <AddFriendModal
-        open={addFriendOpen}
-        onClose={() => setAddFriendOpen(false)}
-        onSent={async (message) => {
-          showToast(message);
-          await loadSocial();
-        }}
-      />
+      {!readOnly ? (
+        <AddFriendModal
+          open={addFriendOpen}
+          onClose={() => setAddFriendOpen(false)}
+          onSent={async (message) => {
+            showToast(message);
+            await loadSocial();
+          }}
+        />
+      ) : null}
 
       {verifiedCelebration && (
         <LiftVerifiedCelebration
@@ -313,50 +307,68 @@ export function ProfileClient({
         title={t("profile.title")}
         subtitle={t("profile.subtitle")}
         actions={
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-            <AddFriendButton onClick={() => setAddFriendOpen(true)} />
-            {editing && (
+          readOnly ? undefined : (
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <AddFriendButton onClick={() => setAddFriendOpen(true)} />
+              {editing && (
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  disabled={saving}
+                  className="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium uppercase tracking-wide text-white/45 hover:border-white/25 hover:text-white disabled:opacity-50"
+                >
+                  {t("profile.cancel")}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={cancelEditing}
+                onClick={() => (editing ? saveProfile() : startEditing())}
                 disabled={saving}
-                className="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium uppercase tracking-wide text-white/45 hover:border-white/25 hover:text-white disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl border border-white/20 px-3 py-2 text-xs font-medium uppercase tracking-wide text-white hover:border-white/40 disabled:opacity-50"
               >
-                {t("profile.cancel")}
+                <Pencil className="h-3.5 w-3.5" />
+                {saving
+                  ? t("common.saving")
+                  : editing
+                    ? t("profile.saveProfile")
+                    : t("profile.editProfile")}
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => (editing ? saveProfile() : startEditing())}
-              disabled={saving}
-              className="flex items-center gap-2 rounded-xl border border-white/20 px-3 py-2 text-xs font-medium uppercase tracking-wide text-white hover:border-white/40 disabled:opacity-50"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              {saving
-                ? t("common.saving")
-                : editing
-                  ? t("profile.saveProfile")
-                  : t("profile.editProfile")}
-            </button>
-          </div>
+            </div>
+          )
         }
       />
 
-      {socialLoading ? (
-        <section className={cn(clientCard, "p-6 text-center text-sm text-white/45")}>
-          Loading fitness interests…
+      {!readOnly ? (
+        socialLoading ? (
+          <section className={cn(clientCard, "p-6 text-center text-sm text-white/45")}>
+            Loading fitness interests…
+          </section>
+        ) : (
+          <FitnessInterestsSection
+            initialInterests={fitnessInterests}
+            onToast={showToast}
+            onSaved={(interests) => {
+              setFitnessInterests(interests);
+              setSocialRefreshKey((key) => key + 1);
+              loadSocial();
+            }}
+          />
+        )
+      ) : fitnessInterests.length > 0 ? (
+        <section className={cn(clientCard, "p-6")}>
+          <p className={clientSectionLabel}>Fitness interests</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {fitnessInterests.map((interest) => (
+              <span
+                key={interest}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/80"
+              >
+                {interest}
+              </span>
+            ))}
+          </div>
         </section>
-      ) : (
-        <FitnessInterestsSection
-          initialInterests={fitnessInterests}
-          onToast={showToast}
-          onSaved={(interests) => {
-            setFitnessInterests(interests);
-            setSocialRefreshKey((key) => key + 1);
-            loadSocial();
-          }}
-        />
-      )}
+      ) : null}
 
       <section className={cn(clientCard, "p-4 sm:p-6")}>
         <div className="flex flex-col gap-6 sm:flex-row">
@@ -452,8 +464,11 @@ export function ProfileClient({
             const pending = status === "Pending";
             const verified = status === "Verified";
             const rejected = status === "Rejected";
-            const submittedDate = formatLiftDate(record?.submitted_at);
-            const verifiedDate = formatLiftDate(record?.verified_at ?? record?.submitted_at);
+            const submittedDate = formatLocaleDate(record?.submitted_at, locale);
+            const verifiedDate = formatLocaleDate(
+              record?.verified_at ?? record?.submitted_at,
+              locale
+            );
             const statusLabel = liftStatusLabel(status);
             return (
               <div key={exercise}>
@@ -478,30 +493,34 @@ export function ProfileClient({
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    placeholder={liftInputPlaceholder(exercise, verified)}
-                    value={lifts[exercise] ?? ""}
-                    onChange={(e) =>
-                      setLifts((prev) => ({
-                        ...prev,
-                        [exercise]: e.target.value,
-                      }))
-                    }
-                    disabled={pending}
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant={exercise === "Long Run" ? "primary" : "dark"}
-                    className="h-[46px] shrink-0 px-6 text-xs"
-                    onClick={() => submitLift(exercise)}
-                    disabled={pending || !lifts[exercise]}
-                  >
-                    Submit
-                  </Button>
-                </div>
+                {!readOnly ? (
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder={liftInputPlaceholder(exercise, verified)}
+                      value={lifts[exercise] ?? ""}
+                      onChange={(e) =>
+                        setLifts((prev) => ({
+                          ...prev,
+                          [exercise]: e.target.value,
+                        }))
+                      }
+                      disabled={pending}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant={exercise === "Long Run" ? "primary" : "dark"}
+                      className="h-[46px] shrink-0 px-6 text-xs"
+                      onClick={() => submitLift(exercise)}
+                      disabled={pending || !lifts[exercise]}
+                    >
+                      Submit
+                    </Button>
+                  </div>
+                ) : !record ? (
+                  <p className="text-sm text-white/35">No record yet</p>
+                ) : null}
 
                 {record && (
                   <p className="mt-2 text-xs text-white/45">
@@ -556,20 +575,22 @@ export function ProfileClient({
         </div>
       </section>
 
-      {socialLoading ? (
-        <section className={cn(clientCard, "p-6 text-center text-sm text-white/45")}>
-          {t("profile.loadingSocial")}
-        </section>
-      ) : (
-        <FriendsSection
-          currentUserId={user.id}
-          initialFriends={friends}
-          initialRequests={friendRequests}
-          myInterests={fitnessInterests}
-          onToast={showToast}
-          refreshKey={socialRefreshKey}
-        />
-      )}
+      {!readOnly ? (
+        socialLoading ? (
+          <section className={cn(clientCard, "p-6 text-center text-sm text-white/45")}>
+            {t("profile.loadingSocial")}
+          </section>
+        ) : (
+          <FriendsSection
+            currentUserId={user.id}
+            initialFriends={friends}
+            initialRequests={friendRequests}
+            myInterests={fitnessInterests}
+            onToast={showToast}
+            refreshKey={socialRefreshKey}
+          />
+        )
+      ) : null}
     </div>
   );
 }

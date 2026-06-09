@@ -289,6 +289,7 @@ export function FriendsSection({
       }>("friends/social");
       setFriends(social.friends);
       setRequests(social.pending_requests);
+      window.dispatchEvent(new Event("notifications:refresh"));
     } catch (err) {
       onToast(err instanceof Error ? err.message : "Could not update request");
     } finally {

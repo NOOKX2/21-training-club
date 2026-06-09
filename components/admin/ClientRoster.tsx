@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Pencil, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import type { AdminClient } from "@/lib/data";
@@ -94,7 +95,14 @@ export function ClientRoster({ clients }: { clients: AdminClient[] }) {
               const countdown = expiryCountdownLabel(c);
               return (
                 <tr key={c.id} className="hover:bg-zinc-900/50">
-                  <td className="px-5 py-4 font-medium text-white">{c.name}</td>
+                  <td className="px-5 py-4 font-medium">
+                    <Link
+                      href={`/admin/clients/${c.id}/profile`}
+                      className="text-white hover:text-[#6B93B8]"
+                    >
+                      {c.name}
+                    </Link>
+                  </td>
                   <td className="px-5 py-4 text-zinc-400">{c.email}</td>
                   <td className="px-5 py-4 text-zinc-400">
                     {genderLabel(c.gender)}

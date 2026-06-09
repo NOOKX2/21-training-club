@@ -24,10 +24,12 @@ export function NutritionHeader({
   selectedDate = localDateKey(new Date()),
   isToday = selectedDate === localDateKey(new Date()),
   showAddButton = true,
+  dateBasePath,
 }: {
   selectedDate?: string;
   isToday?: boolean;
   showAddButton?: boolean;
+  dateBasePath?: string;
 }) {
   const router = useRouter();
   const { t } = useLanguage();
@@ -35,6 +37,13 @@ export function NutritionHeader({
   const canGoForward = selectedDate < today;
 
   function navigate(date: string) {
+    if (dateBasePath) {
+      const params = new URLSearchParams();
+      if (date !== today) params.set("date", date);
+      const query = params.toString();
+      router.push(query ? `${dateBasePath}?${query}` : dateBasePath);
+      return;
+    }
     const params = new URLSearchParams();
     if (date !== today) params.set("date", date);
     const query = params.toString();

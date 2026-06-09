@@ -121,11 +121,13 @@ export function ProgressClient({
   initialHistory,
   initialPhotos,
   initialHeight,
+  readOnly = false,
 }: {
   userId: string;
   initialHistory: WeightEntry[];
   initialPhotos: ProgressPhoto[];
   initialHeight: number | null;
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const { t } = useLanguage();
@@ -190,9 +192,8 @@ export function ProgressClient({
     let cancelled = false;
     setJourneyLoading(true);
 
-    void api<ProgressJourneyStats>(
-      `progress/journey?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`
-    )
+    const journeyParams = new URLSearchParams({ start, end, user_id: userId });
+    void api<ProgressJourneyStats>(`progress/journey?${journeyParams.toString()}`)
       .then((stats) => {
         if (!cancelled) setJourneyStats(stats);
       })
@@ -206,7 +207,7 @@ export function ProgressClient({
     return () => {
       cancelled = true;
     };
-  }, [beforePhotoId, afterPhotoId, photos]);
+  }, [beforePhotoId, afterPhotoId, photos, userId]);
 
   async function logWeight() {
     setMessage("");
@@ -325,31 +326,54 @@ export function ProgressClient({
 
       <section className={cn(clientCard, "p-6")}>
         <p className={clientSectionLabel}>{t("progress.weightTracker")}</p>
-        <div className="mt-5 grid grid-cols-2 gap-4">
-          <div>
-            <FieldLabel>{t("progress.currentWeight")}</FieldLabel>
-            <StepperInput value={weight} onChange={setWeight} step={0.5} />
+        {!readOnly ? (
+          <>
+            <div className="mt-5 grid grid-cols-2 gap-4">
+              <div>
+                <FieldLabel>{t("progress.currentWeight")}</FieldLabel>
+                <StepperInput value={weight} onChange={setWeight} step={0.5} />
+              </div>
+              <div>
+                <FieldLabel>{t("progress.heightCm")}</FieldLabel>
+                <StepperInput
+                  value={height}
+                  onChange={setHeight}
+                  step={1}
+                  inputMode="numeric"
+                />
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="save"
+              className={cn("mt-5", clientSaveButtonClass)}
+              onClick={logWeight}
+            >
+              {t("progress.logWeight")}
+            </Button>
+          </>
+        ) : (
+          <div className="mt-5 grid grid-cols-2 gap-4">
+            <div>
+              <FieldLabel>{t("progress.currentWeight")}</FieldLabel>
+              <p className="text-lg font-bold text-white">
+                {last ? `${last.weight} kg` : "—"}
+              </p>
+            </div>
+            <div>
+              <FieldLabel>{t("progress.heightCm")}</FieldLabel>
+              <p className="text-lg font-bold text-white">
+                {initialHeight != null
+                  ? `${initialHeight} cm`
+                  : last?.height
+                    ? `${last.height} cm`
+                    : "—"}
+              </p>
+            </div>
           </div>
-          <div>
-            <FieldLabel>{t("progress.heightCm")}</FieldLabel>
-            <StepperInput
-              value={height}
-              onChange={setHeight}
-              step={1}
-              inputMode="numeric"
-            />
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="save"
-          className={cn("mt-5", clientSaveButtonClass)}
-          onClick={logWeight}
-        >
-          {t("progress.logWeight")}
-        </Button>
+        )}
 
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className={cn("grid grid-cols-2 gap-4 sm:grid-cols-4", readOnly ? "mt-5" : "mt-6")}>
           <div className={cn(clientCardInner, "px-4 py-3 text-center")}>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
               {t("progress.totalChange")}
@@ -419,54 +443,56 @@ export function ProgressClient({
         )}
       </section>
 
-      <section className={cn(clientCard, "p-6")}>
-        <p className={clientSectionLabel}>{t("progress.uploadPhoto")}</p>
-        <div className="mt-5 grid grid-cols-2 gap-4">
-          <div>
-            <FieldLabel>{t("progress.currentWeightShort")}</FieldLabel>
-            <StepperInput value={photoWeight} onChange={setPhotoWeight} step={0.5} />
+      {!readOnly ? (
+        <section className={cn(clientCard, "p-6")}>
+          <p className={clientSectionLabel}>{t("progress.uploadPhoto")}</p>
+          <div className="mt-5 grid grid-cols-2 gap-4">
+            <div>
+              <FieldLabel>{t("progress.currentWeightShort")}</FieldLabel>
+              <StepperInput value={photoWeight} onChange={setPhotoWeight} step={0.5} />
+            </div>
+            <div>
+              <FieldLabel>{t("progress.notes")}</FieldLabel>
+              <Input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={t("progress.notesPlaceholder")}
+              />
+            </div>
           </div>
-          <div>
-            <FieldLabel>{t("progress.notes")}</FieldLabel>
-            <Input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={t("progress.notesPlaceholder")}
-            />
-          </div>
-        </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className={MOBILE_FILE_INPUT_CLASS}
-          aria-hidden
-          tabIndex={-1}
-          onChange={(e) => onPhotoSelect(e.target.files?.[0] ?? null)}
-        />
-        {photoPreview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={photoPreview}
-            alt="Selected progress photo"
-            className="mt-4 aspect-square w-full max-w-xs rounded-xl object-cover"
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className={MOBILE_FILE_INPUT_CLASS}
+            aria-hidden
+            tabIndex={-1}
+            onChange={(e) => onPhotoSelect(e.target.files?.[0] ?? null)}
           />
-        ) : null}
-        {photoError && <p className="mt-4 text-sm text-red-400">{photoError}</p>}
-        {photoMessage && (
-          <p className="mt-4 text-sm text-[#6B93B8]">{photoMessage}</p>
-        )}
-        <Button
-          type="button"
-          variant="save"
-          className={cn("mt-5 flex h-12 w-full items-center justify-center gap-2 text-sm")}
-          onClick={openPhotoPicker}
-          disabled={uploadingPhoto}
-        >
-          <Camera className="h-4 w-4" />
-          {uploadingPhoto ? t("progress.uploading") : t("progress.takeUploadPhoto")}
-        </Button>
-      </section>
+          {photoPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={photoPreview}
+              alt="Selected progress photo"
+              className="mt-4 aspect-square w-full max-w-xs rounded-xl object-cover"
+            />
+          ) : null}
+          {photoError && <p className="mt-4 text-sm text-red-400">{photoError}</p>}
+          {photoMessage && (
+            <p className="mt-4 text-sm text-[#6B93B8]">{photoMessage}</p>
+          )}
+          <Button
+            type="button"
+            variant="save"
+            className={cn("mt-5 flex h-12 w-full items-center justify-center gap-2 text-sm")}
+            onClick={openPhotoPicker}
+            disabled={uploadingPhoto}
+          >
+            <Camera className="h-4 w-4" />
+            {uploadingPhoto ? t("progress.uploading") : t("progress.takeUploadPhoto")}
+          </Button>
+        </section>
+      ) : null}
 
       <section className={cn(clientCard, "p-6")}>
         <p className={clientSectionLabel}>{t("progress.beforeAfter")}</p>

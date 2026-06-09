@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, FieldLabel } from "@/components/ui/Input";
 import { api } from "@/lib/api-client";
 import { CardioEditor } from "@/components/admin/CardioEditor";
+import { RestDayToggle } from "@/components/admin/RestDayToggle";
 import type { AdminClient, ExerciseVideo, NutritionLimits, ProgramExercise } from "@/lib/data";
 import { limitMacrosToKcal } from "@/lib/nutrition-utils";
 import {
@@ -23,6 +24,7 @@ export function CustomPrograms({
   day,
   initialExercises,
   initialCardio,
+  initialRestDay,
   initialLimits,
   videos,
 }: {
@@ -32,6 +34,7 @@ export function CustomPrograms({
   day: number;
   initialExercises: ProgramExercise[];
   initialCardio: ProgramCardio | null;
+  initialRestDay: boolean;
   initialLimits: NutritionLimits;
   videos: ExerciseVideo[];
 }) {
@@ -45,6 +48,7 @@ export function CustomPrograms({
   const [cardioMinutes, setCardioMinutes] = useState(initialCardioForm.minutes);
   const [cardioKm, setCardioKm] = useState(initialCardioForm.km);
   const [cardioNotes, setCardioNotes] = useState(initialCardioForm.notes);
+  const [restDay, setRestDay] = useState(initialRestDay);
   const [limits, setLimits] = useState({
     protein: initialLimits.protein != null ? String(initialLimits.protein) : "",
     carbs: initialLimits.carbs != null ? String(initialLimits.carbs) : "",
@@ -101,8 +105,46 @@ export function CustomPrograms({
     });
   }
 
+  function handleRestDayChange(checked: boolean) {
+    setRestDay(checked);
+    if (checked) {
+      setExercises([]);
+      setCardioMinutes("");
+      setCardioKm("");
+      setCardioNotes("");
+    }
+    setError("");
+    setMessage("");
+  }
+
   async function save() {
     if (!selectedEmail) return;
+    if (restDay) {
+      setSaving(true);
+      setMessage("");
+      setError("");
+      try {
+        await api("admin/custom-programs", {
+          method: "POST",
+          body: JSON.stringify({
+            client_email: selectedEmail,
+            week,
+            day,
+            exercises: [],
+            cardio: null,
+            rest_day: true,
+          }),
+        });
+        setMessage(`Rest day saved for Week ${week}, Day ${day} — ${selected?.name ?? "client"}`);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Save failed");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     const cardio = formStateToCardio({
       minutes: cardioMinutes,
       km: cardioKm,
@@ -111,7 +153,7 @@ export function CustomPrograms({
     const hasCardio = cardio != null;
     const incomplete = exercises.some((ex) => !ex.demo_video_id || !ex.name.trim());
     if (exercises.length === 0 && !hasCardio) {
-      setError("Add at least one exercise or cardio assignment");
+      setError("Add at least one exercise, cardio assignment, or mark as rest day");
       setMessage("");
       return;
     }
@@ -132,6 +174,7 @@ export function CustomPrograms({
           day,
           exercises,
           cardio,
+          rest_day: false,
         }),
       });
       setMessage(`Saved Week ${week}, Day ${day} for ${selected?.name ?? "client"}`);
@@ -309,6 +352,10 @@ export function CustomPrograms({
             </div>
           </div>
 
+          <RestDayToggle checked={restDay} onChange={handleRestDayChange} className="mb-5" />
+
+          {!restDay && (
+            <>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase text-white">
               Exercises for {selected.name}
@@ -407,6 +454,20 @@ export function CustomPrograms({
             >
               <Save className="h-4 w-4" />
               {saving ? "Saving…" : "Save Custom Program"}
+            </Button>
+          )}
+            </>
+          )}
+
+          {restDay && (
+            <Button
+              type="button"
+              className="mt-2 h-11 w-full gap-2 bg-[#6B93B8] text-white"
+              onClick={save}
+              disabled={saving}
+            >
+              <Save className="h-4 w-4" />
+              {saving ? "Saving…" : "Save Rest Day"}
             </Button>
           )}
         </div>

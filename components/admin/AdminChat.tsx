@@ -9,7 +9,8 @@ import { CoachProfileEditor } from "@/components/admin/CoachProfileEditor";
 import { CoachWeeklyFeedbackForm } from "@/components/admin/CoachWeeklyFeedbackForm";
 import { markChatNotificationsRead } from "@/components/NotificationBell";
 import { api } from "@/lib/api-client";
-import type { AdminClient, Coach, Message } from "@/lib/data";
+import type { AdminChatClient, Coach, Message } from "@/lib/data";
+import { expiryCountdownLabel } from "./admin-utils";
 import { cn } from "@/lib/utils";
 
 export function AdminChat({
@@ -18,7 +19,7 @@ export function AdminChat({
   selectedClientId,
   initialMessages,
 }: {
-  clients: AdminClient[];
+  clients: AdminChatClient[];
   coaches: Coach[];
   selectedClientId: string;
   initialMessages: Message[];
@@ -29,6 +30,7 @@ export function AdminChat({
   const [attachment, setAttachment] = useState("");
 
   const selected = clients.find((c) => c.id === selectedClientId);
+  const selectedDaysLeft = selected ? expiryCountdownLabel(selected) : null;
   const messages = initialMessages;
 
   useEffect(() => {
@@ -81,25 +83,46 @@ export function AdminChat({
           <p className="border-b border-zinc-800 px-4 py-3 text-xs font-bold uppercase tracking-widest text-white">
             Clients
           </p>
-          {clients.map((c) => (
-            <Link
-              key={c.id}
-              href={`/admin/chat?client=${c.id}`}
-              className={cn(
-                "flex min-h-[56px] items-center gap-3 border-b border-zinc-800/50 px-4 py-3 transition-colors",
-                c.id === selectedClientId ? "bg-zinc-900" : "hover:bg-zinc-900/50"
-              )}
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800">
-                <User className="h-4 w-4 text-zinc-500" />
+          {clients.map((c) => {
+            const daysLeft = expiryCountdownLabel(c);
+            return (
+              <div
+                key={c.id}
+                className={cn(
+                  "flex min-h-[56px] items-center gap-3 border-b border-zinc-800/50 px-4 py-3 transition-colors",
+                  c.id === selectedClientId ? "bg-zinc-900" : "hover:bg-zinc-900/50"
+                )}
+              >
+                <Link
+                  href={`/admin/chat?client=${c.id}`}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800"
+                  aria-label={`Chat with ${c.name}`}
+                >
+                  <User className="h-4 w-4 text-zinc-500" />
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <Link
+                    href={`/admin/clients/${c.id}/profile`}
+                    className="block truncate text-sm font-medium text-white hover:text-[#6B93B8]"
+                  >
+                    {c.name}
+                  </Link>
+                  <Link
+                    href={`/admin/chat?client=${c.id}`}
+                    className="block min-w-0"
+                  >
+                    <p className="truncate text-xs text-zinc-500">{c.email}</p>
+                    <p className="text-[10px] text-zinc-600">{c.tier_level}</p>
+                  </Link>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className={cn("text-[10px] font-semibold", daysLeft.className)}>
+                    {daysLeft.text}
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">{c.name}</p>
-                <p className="truncate text-xs text-zinc-500">{c.email}</p>
-                <p className="text-[10px] text-zinc-600">{c.tier_level}</p>
-              </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
 
         <div
@@ -121,10 +144,25 @@ export function AdminChat({
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800">
                   <User className="h-4 w-4 text-zinc-500" />
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-white">{selected.name}</p>
+                <div className="min-w-0 flex-1">
+                  <Link
+                    href={`/admin/clients/${selected.id}/profile`}
+                    className="block truncate text-sm font-bold text-white hover:text-[#6B93B8]"
+                  >
+                    {selected.name}
+                  </Link>
                   <p className="text-xs text-zinc-500">{selected.tier_level}</p>
                 </div>
+                {selectedDaysLeft ? (
+                  <p
+                    className={cn(
+                      "shrink-0 text-[10px] font-semibold",
+                      selectedDaysLeft.className
+                    )}
+                  >
+                    {selectedDaysLeft.text}
+                  </p>
+                ) : null}
               </div>
 
               <CoachWeeklyFeedbackForm clientId={selectedClientId} />

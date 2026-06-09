@@ -19,8 +19,10 @@ export default async function AdminCustomProgramsPage({
       : "";
   const week = Math.min(4, Math.max(1, parseInt(params.week ?? "1", 10) || 1));
   const day = Math.min(7, Math.max(1, parseInt(params.day ?? "1", 10) || 1));
-  const [{ exercises, cardio }, videos, initialLimits] = await Promise.all([
-    selectedEmail ? getCustomProgram(selectedEmail, week, day) : { exercises: [], cardio: null },
+  const [{ exercises, cardio, rest_day }, videos, initialLimits] = await Promise.all([
+    selectedEmail
+      ? getCustomProgram(selectedEmail, week, day)
+      : { exercises: [], cardio: null, rest_day: false },
     getExerciseVideos(),
     selectedEmail ? getNutritionLimits(selectedEmail) : Promise.resolve({}),
   ]);
@@ -33,6 +35,7 @@ export default async function AdminCustomProgramsPage({
       day={day}
       initialExercises={exercises}
       initialCardio={cardio}
+      initialRestDay={rest_day}
       initialLimits={initialLimits}
       videos={videos}
     />

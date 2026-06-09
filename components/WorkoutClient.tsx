@@ -4,7 +4,9 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardCheck, ListPlus, Plus, Trash2, Zap } from "lucide-react";
 import { ClientSectionHeading } from "@/components/ClientSectionHeading";
+import { RestDayCard } from "@/components/RestDayCard";
 import { useLanguage } from "@/components/LanguageProvider";
+import { ExerciseMediaGallery } from "@/components/ExerciseMediaGallery";
 import { ExerciseVideoPlayer } from "@/components/ExerciseVideoPlayer";
 import { StepperInput } from "@/components/StepperInput";
 import { Button } from "@/components/ui/Button";
@@ -14,6 +16,7 @@ import type {
   CardioLog,
   FormCheckSubmission,
   WorkoutDay,
+  WorkoutExercise,
   WorkoutSetEntry,
 } from "@/lib/data";
 import { MAX_FORM_CHECK_VIDEO_MB } from "@/lib/form-check-constants";
@@ -32,6 +35,47 @@ import { formatProgramCardio } from "@/lib/program-cardio";
 import { cn } from "@/lib/utils";
 
 const WEEK_OPTIONS = [1, 2, 3, 4];
+
+const exerciseMediaClass =
+  "h-[4.75rem] w-[4.75rem] rounded-lg sm:h-28 sm:w-44 sm:rounded-xl";
+
+function ExerciseDemoMedia({ exercise }: { exercise: WorkoutExercise }) {
+  if (exercise.demo_video?.media_items?.length) {
+    return (
+      <ExerciseMediaGallery
+        exerciseId={exercise.demo_video.id}
+        mediaItems={exercise.demo_video.media_items}
+        title={exercise.name}
+        compact
+        className="shrink-0"
+      />
+    );
+  }
+
+  if (exercise.demo_video) {
+    return (
+      <ExerciseVideoPlayer
+        video={exercise.demo_video}
+        title={exercise.name}
+        compact
+        className={exerciseMediaClass}
+      />
+    );
+  }
+
+  if (exercise.image_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={exercise.image_url}
+        alt={exercise.name}
+        className={cn(exerciseMediaClass, "shrink-0 object-cover")}
+      />
+    );
+  }
+
+  return null;
+}
 
 type ExerciseLogState = {
   actual_weight: string;
@@ -350,6 +394,10 @@ export function WorkoutClient({
         })}
       </div>
 
+      {dayData?.rest_day ? (
+        <RestDayCard className="mt-2" />
+      ) : (
+        <>
       <ClientSectionHeading className="mb-4">
         {t("workouts.dayExercises", { day })}
       </ClientSectionHeading>
@@ -372,21 +420,7 @@ export function WorkoutClient({
               <>
                 {(ex.demo_video || ex.image_url) && (
                   <div className="mb-3 flex min-w-0 items-end">
-                    {ex.demo_video ? (
-                      <ExerciseVideoPlayer
-                        video={ex.demo_video}
-                        title={ex.name}
-                        compact
-                        className="h-[4.75rem] w-[4.75rem] rounded-lg sm:h-28 sm:w-44 sm:rounded-xl"
-                      />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={ex.image_url!}
-                        alt={ex.name}
-                        className="h-[4.75rem] w-[4.75rem] shrink-0 rounded-lg object-cover sm:h-28 sm:w-44 sm:rounded-xl"
-                      />
-                    )}
+                    <ExerciseDemoMedia exercise={ex} />
                   </div>
                 )}
               <div className="mb-4 space-y-3">
@@ -446,21 +480,7 @@ export function WorkoutClient({
               <div className="mb-4 flex min-w-0 items-end gap-2 sm:gap-3">
                 {(ex.demo_video || ex.image_url) && (
                   <div className="shrink-0">
-                    {ex.demo_video ? (
-                      <ExerciseVideoPlayer
-                        video={ex.demo_video}
-                        title={ex.name}
-                        compact
-                        className="h-[4.75rem] w-[4.75rem] rounded-lg sm:h-28 sm:w-44 sm:rounded-xl"
-                      />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={ex.image_url!}
-                        alt={ex.name}
-                        className="h-[4.75rem] w-[4.75rem] rounded-lg object-cover sm:h-28 sm:w-44 sm:rounded-xl"
-                      />
-                    )}
+                    <ExerciseDemoMedia exercise={ex} />
                   </div>
                 )}
                 <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:gap-3">
@@ -589,7 +609,7 @@ export function WorkoutClient({
         ))}
       </div>
 
-      {dayData?.cardio && (
+      {dayData?.cardio && !dayData.rest_day && (
         <section className="mt-9">
           <ClientSectionHeading className="mb-4">{t("workouts.cardioSection")}</ClientSectionHeading>
           <div className={cn(clientCard, "px-6 py-6 sm:px-7")}>
@@ -666,6 +686,8 @@ export function WorkoutClient({
             )}
           </div>
         </section>
+      )}
+        </>
       )}
     </div>
   );

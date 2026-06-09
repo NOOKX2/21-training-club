@@ -2,46 +2,93 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Tag, Upload, Video } from "lucide-react";
+import { Tag, Upload, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, FieldLabel } from "@/components/ui/Input";
-import { ExerciseVideoPlayer } from "@/components/ExerciseVideoPlayer";
+import { ExerciseMediaGallery } from "@/components/ExerciseMediaGallery";
 import { api } from "@/lib/api-client";
 import type { ExerciseVideo } from "@/lib/data";
 import { FilePicker } from "@/components/FilePicker";
-import { MAX_VIDEO_MB } from "@/lib/exercise-video-constants";
-import { readFileAsDataUrl } from "@/lib/file-upload";
+import {
+  MAX_EXERCISE_MEDIA_FILES,
+  MAX_IMAGE_BYTES,
+  MAX_IMAGE_MB,
+  MAX_VIDEO_MB,
+} from "@/lib/exercise-video-constants";
+import { resolveExerciseMediaItems } from "@/lib/exercise-media-utils";
+import { readFileAsDataUrl, readImageDataUrl } from "@/lib/file-upload";
+
+type PendingMedia = {
+  id: string;
+  name: string;
+  type: "image" | "video";
+  previewUrl: string;
+};
 
 export function ExerciseVideoLibrary({ videos }: { videos: ExerciseVideo[] }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [tags, setTags] = useState("");
-  const [videoFile, setVideoFile] = useState("");
-  const [fileName, setFileName] = useState("");
+  const [mediaFiles, setMediaFiles] = useState<PendingMedia[]>([]);
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
 
-  async function onVideoSelect(file: File) {
+  async function onFilesSelect(files: File[]) {
     setError("");
-    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
-      setError(`Video must be under ${MAX_VIDEO_MB}MB`);
+    const remaining = MAX_EXERCISE_MEDIA_FILES - mediaFiles.length;
+    if (remaining <= 0) {
+      setError(`Maximum ${MAX_EXERCISE_MEDIA_FILES} files per exercise`);
       return;
     }
-    setFileName(file.name);
-    try {
-      setVideoFile(await readFileAsDataUrl(file));
-    } catch {
-      setError("Could not read video file");
-      setFileName("");
-      setVideoFile("");
+
+    const nextFiles = files.slice(0, remaining);
+    const pending: PendingMedia[] = [];
+
+    for (const file of nextFiles) {
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      if (!isImage && !isVideo) {
+        setError("Only image and video files are supported");
+        continue;
+      }
+      if (isVideo && file.size > MAX_VIDEO_MB * 1024 * 1024) {
+        setError(`Each video must be under ${MAX_VIDEO_MB}MB`);
+        continue;
+      }
+      if (isImage && file.size > MAX_IMAGE_BYTES) {
+        setError(`Each image must be under ${MAX_IMAGE_MB}MB`);
+        continue;
+      }
+
+      try {
+        const previewUrl = isImage
+          ? await readImageDataUrl(file)
+          : await readFileAsDataUrl(file);
+        pending.push({
+          id: crypto.randomUUID(),
+          name: file.name,
+          type: isImage ? "image" : "video",
+          previewUrl,
+        });
+      } catch {
+        setError("Could not read one of the selected files");
+      }
     }
+
+    if (pending.length > 0) {
+      setMediaFiles((current) => [...current, ...pending]);
+    }
+  }
+
+  function removePending(id: string) {
+    setMediaFiles((current) => current.filter((file) => file.id !== id));
   }
 
   async function uploadVideo(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    if (!videoFile) {
-      setError("Please choose a video file");
+    if (!mediaFiles.length) {
+      setError("Please choose at least one image or video");
       return;
     }
     setError("");
@@ -55,14 +102,13 @@ export function ExerciseVideoLibrary({ videos }: { videos: ExerciseVideo[] }) {
         method: "POST",
         body: JSON.stringify({
           name: name.trim(),
-          video_base64: videoFile,
+          media_files: mediaFiles.map((file) => ({ data_base64: file.previewUrl })),
           tags: tagList,
         }),
       });
       setName("");
       setTags("");
-      setVideoFile("");
-      setFileName("");
+      setMediaFiles([]);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -79,7 +125,8 @@ export function ExerciseVideoLibrary({ videos }: { videos: ExerciseVideo[] }) {
           Exercise Video Library
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Manage demo videos for program exercises
+          Upload multiple demo photos or videos — clients can swipe through them in
+          their program
         </p>
       </div>
 
@@ -108,28 +155,71 @@ export function ExerciseVideoLibrary({ videos }: { videos: ExerciseVideo[] }) {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-0 flex-1">
-              <FieldLabel>Video File</FieldLabel>
+          <div>
+            <FieldLabel>Photos &amp; Videos</FieldLabel>
+            <div className="flex flex-wrap items-end gap-3">
               <FilePicker
-                accept="video/*"
-                disabled={adding}
-                onFile={onVideoSelect}
-                className="flex h-12 w-full items-center justify-center gap-2 border border-zinc-700 bg-black text-sm text-zinc-400 transition-colors hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                accept="image/*,video/*"
+                multiple
+                disabled={adding || mediaFiles.length >= MAX_EXERCISE_MEDIA_FILES}
+                onFiles={onFilesSelect}
+                className="flex h-12 min-w-[12rem] flex-1 items-center justify-center gap-2 border border-zinc-700 bg-black px-4 text-sm text-zinc-400 transition-colors hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Upload className="h-4 w-4" />
-                {fileName || "Choose Video File"}
+                Choose Files ({mediaFiles.length}/{MAX_EXERCISE_MEDIA_FILES})
               </FilePicker>
+              <Button
+                type="submit"
+                className="h-12 gap-2 bg-[#6B93B8] px-8 text-white hover:bg-[#5a82a7]"
+                disabled={adding || mediaFiles.length === 0}
+              >
+                <Upload className="h-4 w-4" />
+                {adding ? "Uploading…" : "Upload"}
+              </Button>
             </div>
-            <Button
-              type="submit"
-              className="h-12 gap-2 bg-[#6B93B8] px-8 text-white hover:bg-[#5a82a7]"
-              disabled={adding || !videoFile}
-            >
-              <Upload className="h-4 w-4" />
-              {adding ? "Uploading…" : "Upload"}
-            </Button>
+            <p className="mt-1 text-[10px] text-zinc-600">
+              Add up to {MAX_EXERCISE_MEDIA_FILES} images or videos. Clients see
+              them one by one with next/previous controls.
+            </p>
           </div>
+
+          {mediaFiles.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {mediaFiles.map((file) => (
+                <div
+                  key={file.id}
+                  className="relative overflow-hidden border border-zinc-800 bg-zinc-950"
+                >
+                  {file.type === "image" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={file.previewUrl}
+                      alt={file.name}
+                      className="h-24 w-32 object-cover"
+                    />
+                  ) : (
+                    <video
+                      src={file.previewUrl}
+                      className="h-24 w-32 object-cover"
+                      muted
+                      playsInline
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removePending(file.id)}
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/80 text-white hover:bg-red-500/90"
+                    aria-label={`Remove ${file.name}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                  <p className="max-w-32 truncate px-2 py-1 text-[10px] text-zinc-500">
+                    {file.name}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
 
           {error && <p className="text-sm text-red-400">{error}</p>}
         </form>
@@ -141,40 +231,47 @@ export function ExerciseVideoLibrary({ videos }: { videos: ExerciseVideo[] }) {
         </p>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {videos.map((v) => (
-            <article
-              key={v.id}
-              className="overflow-hidden border border-zinc-800 bg-zinc-950"
-            >
-              <ExerciseVideoPlayer
-                video={{
-                  id: v.id,
-                  video_url: v.video_url,
-                  has_uploaded_file: Boolean(v.video_file_id || v.video_base64),
-                }}
-                title={v.name}
-                streamBasePath="/api/admin/exercise-videos"
-              />
-              <div className="p-4">
-                <p className="font-bold uppercase tracking-wide text-white">
-                  {v.name}
-                </p>
-                {v.tags && v.tags.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {v.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[#6B93B8]"
-                      >
-                        <Tag className="h-3 w-3" />
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </article>
-          ))}
+          {videos.map((v) => {
+            const mediaItems = resolveExerciseMediaItems(v);
+            return (
+              <article
+                key={v.id}
+                className="overflow-hidden border border-zinc-800 bg-zinc-950"
+              >
+                <div className="p-3">
+                  <ExerciseMediaGallery
+                    exerciseId={v.id}
+                    mediaItems={mediaItems}
+                    title={v.name}
+                    streamBasePath="/api/admin/exercise-videos"
+                  />
+                </div>
+                <div className="p-4 pt-0">
+                  <p className="font-bold uppercase tracking-wide text-white">
+                    {v.name}
+                  </p>
+                  {mediaItems.length > 1 && (
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                      {mediaItems.length} demos
+                    </p>
+                  )}
+                  {v.tags && v.tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {v.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[#6B93B8]"
+                        >
+                          <Tag className="h-3 w-3" />
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
     </div>

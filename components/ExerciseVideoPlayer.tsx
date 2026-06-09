@@ -9,6 +9,7 @@ export type ExerciseVideoSource = {
   id: string;
   video_url?: string;
   has_uploaded_file?: boolean;
+  media_id?: string;
 };
 
 function hasPlayableVideo(video: ExerciseVideoSource): boolean {
@@ -59,9 +60,12 @@ function VideoMedia({
   }
 
   if (video.has_uploaded_file) {
+    const streamUrl = video.media_id
+      ? `${streamBasePath}/${video.id}/media/${video.media_id}/stream`
+      : `${streamBasePath}/${video.id}/stream`;
     return (
       <video
-        src={`${streamBasePath}/${video.id}/stream`}
+        src={streamUrl}
         controls={controls}
         autoPlay={autoPlay}
         className={className}

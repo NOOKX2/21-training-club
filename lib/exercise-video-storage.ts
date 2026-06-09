@@ -6,10 +6,10 @@ const BUCKET_NAME = "exercise_video_files";
 
 function parseBase64DataUrl(dataUrl: string): { buffer: Buffer; contentType: string } {
   const comma = dataUrl.indexOf(",");
-  if (comma === -1) throw new Error("Invalid video data");
+  if (comma === -1) throw new Error("Invalid file data");
   const meta = dataUrl.slice(0, comma);
   const contentTypeMatch = meta.match(/^data:([^;]+)/);
-  if (!contentTypeMatch) throw new Error("Invalid video data");
+  if (!contentTypeMatch) throw new Error("Invalid file data");
   const buffer = Buffer.from(dataUrl.slice(comma + 1), "base64");
   return { buffer, contentType: contentTypeMatch[1] };
 }

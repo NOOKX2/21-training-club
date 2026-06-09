@@ -49,10 +49,18 @@ export type MealSubmission = {
   user_name?: string;
 };
 
+export type ExerciseMediaItem = {
+  id: string;
+  type: "image" | "video";
+  video_url?: string;
+  has_uploaded_file?: boolean;
+};
+
 export type ExerciseDemoVideo = {
   id: string;
   video_url?: string;
   has_uploaded_file?: boolean;
+  media_items?: ExerciseMediaItem[];
 };
 
 export type WorkoutExercise = {
@@ -71,6 +79,7 @@ export type WorkoutDay = {
   day: number;
   exercises: WorkoutExercise[];
   cardio?: ProgramCardio | null;
+  rest_day?: boolean;
 };
 
 export type WorkoutSetEntry = {
@@ -117,6 +126,7 @@ export type Message = {
   sender: string;
   content: string;
   attachment_base64?: string;
+  program_share?: import("./program-share-types").ProgramSharePayload;
   timestamp: string;
 };
 
@@ -139,10 +149,22 @@ export type LiftRecord = {
   rejected_at?: string;
 };
 
+export type AdminTierCounts = {
+  tier_1: number;
+  tier_2: number;
+  tier_3: number;
+};
+
+export type AdminMonthExpiry = {
+  month_key: string;
+  label: string;
+  count: number;
+};
+
 export type AdminStats = {
   total_clients: number;
-  mrr: number;
-  churn_rate: number;
+  tier_counts: AdminTierCounts;
+  expiring_by_month: AdminMonthExpiry[];
 };
 
 export type AdminClient = {
@@ -195,6 +217,13 @@ export type FormCheckSubmission = {
 export type ExerciseVideo = {
   id: string;
   name: string;
+  media_items?: Array<{
+    id: string;
+    type: "image" | "video";
+    video_url?: string;
+    file_id?: string;
+    content_type?: string;
+  }>;
   video_base64?: string;
   video_url?: string;
   video_file_id?: string;
@@ -216,6 +245,7 @@ export type ProgramTemplate = {
   day: number;
   exercises: ProgramExercise[];
   cardio?: ProgramCardio | null;
+  rest_day?: boolean;
 };
 
 function defaultWeek(week: number) {
@@ -377,21 +407,43 @@ async function attachDemoVideos(
   ];
   if (!videoIds.length) return exercises;
 
+  const { resolveExerciseMediaItems } = await import("./exercise-media-utils");
+
   const videos = await db
     .collection("exercise_videos")
     .find({ id: { $in: videoIds } })
-    .project({ _id: 0, id: 1, video_url: 1, video_file_id: 1, video_base64: 1 })
+    .project({
+      _id: 0,
+      id: 1,
+      video_url: 1,
+      video_file_id: 1,
+      video_base64: 1,
+      media_items: 1,
+    })
     .toArray();
 
   const videoMap = new Map(
-    videos.map((v) => [
-      String(v.id),
-      {
+    videos.map((v) => {
+      const media_items = resolveExerciseMediaItems({
         id: String(v.id),
+        media_items: v.media_items as ExerciseVideo["media_items"],
         video_url: v.video_url ? String(v.video_url) : undefined,
-        has_uploaded_file: Boolean(v.video_file_id || v.video_base64),
-      },
-    ])
+        video_file_id: v.video_file_id ? String(v.video_file_id) : undefined,
+        video_base64: v.video_base64 ? String(v.video_base64) : undefined,
+      });
+      const primary = media_items[0];
+      return [
+        String(v.id),
+        {
+          id: String(v.id),
+          video_url: primary?.video_url ?? (v.video_url ? String(v.video_url) : undefined),
+          has_uploaded_file: Boolean(
+            primary?.has_uploaded_file || v.video_file_id || v.video_base64
+          ),
+          media_items,
+        },
+      ];
+    })
   );
 
   return exercises.map((ex) => {
@@ -450,19 +502,29 @@ export async function getWorkoutPageData(
   let dayCardio: ProgramCardio | null = null;
 
   if (customProgram) {
-    dayCardio = normalizeProgramCardio(customProgram.cardio);
-    if (customProgram.exercises?.length) {
-      const customExercises = await attachDemoVideos(
-        db,
-        toWorkoutExercises(customProgram.exercises as ProgramExercise[])
-      );
+    if (customProgram.rest_day) {
       days = days.map((d) =>
-        d.day === day ? { ...d, exercises: customExercises, cardio: dayCardio } : d
+        d.day === day
+          ? { ...d, exercises: [], cardio: null, rest_day: true }
+          : d
       );
     } else {
-      days = days.map((d) =>
-        d.day === day ? { ...d, cardio: dayCardio } : d
-      );
+      dayCardio = normalizeProgramCardio(customProgram.cardio);
+      if (customProgram.exercises?.length) {
+        const customExercises = await attachDemoVideos(
+          db,
+          toWorkoutExercises(customProgram.exercises as ProgramExercise[])
+        );
+        days = days.map((d) =>
+          d.day === day
+            ? { ...d, exercises: customExercises, cardio: dayCardio, rest_day: false }
+            : d
+        );
+      } else {
+        days = days.map((d) =>
+          d.day === day ? { ...d, cardio: dayCardio, rest_day: false } : d
+        );
+      }
     }
   } else {
     const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
@@ -472,21 +534,29 @@ export async function getWorkoutPageData(
       { projection: { _id: 0 } }
     );
     if (template) {
-      dayCardio = normalizeProgramCardio(template.cardio);
-      if (template.exercises?.length) {
-        const templateExercises = await attachDemoVideos(
-          db,
-          toWorkoutExercises(template.exercises as ProgramExercise[])
-        );
+      if (template.rest_day) {
         days = days.map((d) =>
           d.day === day
-            ? { ...d, exercises: templateExercises, cardio: dayCardio }
+            ? { ...d, exercises: [], cardio: null, rest_day: true }
             : d
         );
       } else {
-        days = days.map((d) =>
-          d.day === day ? { ...d, cardio: dayCardio } : d
-        );
+        dayCardio = normalizeProgramCardio(template.cardio);
+        if (template.exercises?.length) {
+          const templateExercises = await attachDemoVideos(
+            db,
+            toWorkoutExercises(template.exercises as ProgramExercise[])
+          );
+          days = days.map((d) =>
+            d.day === day
+              ? { ...d, exercises: templateExercises, cardio: dayCardio, rest_day: false }
+              : d
+          );
+        } else {
+          days = days.map((d) =>
+            d.day === day ? { ...d, cardio: dayCardio, rest_day: false } : d
+          );
+        }
       }
     }
   }
@@ -649,14 +719,70 @@ export async function getUserProfilePhotoUrl(userId: string): Promise<string | n
   return null;
 }
 
+function buildExpiringByMonth(
+  expiryDates: Array<string | null | undefined>
+): AdminMonthExpiry[] {
+  const now = new Date();
+  const monthsAhead = 6;
+  const buckets: AdminMonthExpiry[] = [];
+
+  for (let i = 0; i < monthsAhead; i++) {
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1)
+    );
+    const year = monthStart.getUTCFullYear();
+    const month = monthStart.getUTCMonth();
+    const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    const rangeStart = `${monthKey}-01`;
+    const rangeEnd = `${monthKey}-${String(lastDay).padStart(2, "0")}`;
+
+    const count = expiryDates.filter((raw) => {
+      const date = normalizeDateOnly(raw);
+      if (!date) return false;
+      return date >= rangeStart && date <= rangeEnd;
+    }).length;
+
+    buckets.push({
+      month_key: monthKey,
+      label: monthStart.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      }),
+      count,
+    });
+  }
+
+  return buckets;
+}
+
 export async function getAdminStats(): Promise<AdminStats> {
   const db = await getDb();
-  const total_clients = await db.collection("users").countDocuments({ role: "user" });
-  const tier_3_count = await db.collection("users").countDocuments({ tier_level: "Tier 3" });
+  const clients = await db
+    .collection("users")
+    .find({ role: "user" })
+    .project({ _id: 0, tier_level: 1, access_expires_at: 1 })
+    .toArray();
+
+  const tier_counts: AdminTierCounts = { tier_1: 0, tier_2: 0, tier_3: 0 };
+  const expiryDates: Array<string | null | undefined> = [];
+
+  for (const client of clients) {
+    const tier = String(client.tier_level ?? "Tier 1");
+    if (tier === "Tier 2") tier_counts.tier_2 += 1;
+    else if (tier === "Tier 3") tier_counts.tier_3 += 1;
+    else tier_counts.tier_1 += 1;
+
+    expiryDates.push(
+      client.access_expires_at ? String(client.access_expires_at) : null
+    );
+  }
+
   return {
-    total_clients,
-    mrr: tier_3_count * 299,
-    churn_rate: 2.5,
+    total_clients: clients.length,
+    tier_counts,
+    expiring_by_month: buildExpiringByMonth(expiryDates),
   };
 }
 
@@ -676,20 +802,54 @@ export async function getAdminRecentActivity(): Promise<AdminActivity[]> {
   }));
 }
 
-export async function getAdminClients(): Promise<AdminClient[]> {
+export type AdminChatClient = AdminClient & {
+  last_message_at?: string;
+};
+
+export async function getAdminClientsForChat(
+  coachId: string
+): Promise<AdminChatClient[]> {
   const db = await getDb();
-  const clients = await db
-    .collection("users")
-    .find({ role: "user" })
-    .sort({ created_at: -1 })
+  const clients = await getAdminClients();
+  if (!coachId) return clients;
+
+  const lastMessages = await db
+    .collection("messages")
+    .aggregate<{ _id: string; last_message_at: string }>([
+      { $match: { coach_id: coachId } },
+      { $group: { _id: "$user_id", last_message_at: { $max: "$timestamp" } } },
+    ])
     .toArray();
-  return clients.map((c) => ({
+
+  const lastByClient = new Map(
+    lastMessages.map((row) => [String(row._id), String(row.last_message_at)])
+  );
+
+  return clients
+    .map((client) => ({
+      ...client,
+      last_message_at: lastByClient.get(client.id),
+    }))
+    .sort((a, b) => {
+      if (a.last_message_at && b.last_message_at) {
+        return b.last_message_at.localeCompare(a.last_message_at);
+      }
+      if (a.last_message_at) return -1;
+      if (b.last_message_at) return 1;
+      return a.name.localeCompare(b.name);
+    });
+}
+
+function mapAdminClient(c: Record<string, unknown>): AdminClient {
+  return {
     id: String(c._id),
     email: String(c.email),
     name: String(c.name),
     tier_level: String(c.tier_level ?? "Tier 1"),
     created_at: c.created_at ? String(c.created_at) : undefined,
-    assigned_meal_plan: c.assigned_meal_plan ? String(c.assigned_meal_plan) : undefined,
+    assigned_meal_plan: c.assigned_meal_plan
+      ? String(c.assigned_meal_plan)
+      : undefined,
     gender: c.gender ? String(c.gender) : null,
     access_starts_at: normalizeDateOnly(
       c.access_starts_at ? String(c.access_starts_at) : null
@@ -698,7 +858,32 @@ export async function getAdminClients(): Promise<AdminClient[]> {
       c.access_expires_at ? String(c.access_expires_at) : null
     ),
     tdee: c.tdee != null && c.tdee !== "" ? Number(c.tdee) : null,
-  }));
+  };
+}
+
+export async function getAdminClientById(
+  clientId: string
+): Promise<AdminClient | null> {
+  let oid: ObjectId;
+  try {
+    oid = new ObjectId(clientId);
+  } catch {
+    return null;
+  }
+  const db = await getDb();
+  const client = await db.collection("users").findOne({ _id: oid, role: "user" });
+  if (!client) return null;
+  return mapAdminClient(client as Record<string, unknown>);
+}
+
+export async function getAdminClients(): Promise<AdminClient[]> {
+  const db = await getDb();
+  const clients = await db
+    .collection("users")
+    .find({ role: "user" })
+    .sort({ created_at: -1 })
+    .toArray();
+  return clients.map((c) => mapAdminClient(c as Record<string, unknown>));
 }
 
 export async function getUserTdee(userId: string): Promise<number | null> {
@@ -853,6 +1038,7 @@ export async function getProgramTemplate(
     day: Number(program.day ?? day),
     exercises: (program.exercises as ProgramExercise[]) ?? [],
     cardio: normalizeProgramCardio(program.cardio),
+    rest_day: Boolean(program.rest_day),
   };
 }
 
@@ -863,6 +1049,7 @@ export async function getCustomProgram(
 ): Promise<{
   exercises: ProgramExercise[];
   cardio: ProgramCardio | null;
+  rest_day: boolean;
 }> {
   const db = await getDb();
   let program = await db.collection("custom_programs").findOne(
@@ -888,6 +1075,7 @@ export async function getCustomProgram(
   return {
     exercises: (program?.exercises as ProgramExercise[]) ?? [],
     cardio: normalizeProgramCardio(program?.cardio),
+    rest_day: Boolean(program?.rest_day),
   };
 }
 

@@ -11,6 +11,10 @@ import {
   sharedFitnessInterests,
 } from "../fitness-interests";
 import { profilePhotoStreamPath } from "../profile-photo-storage";
+import {
+  createClientNotification,
+  markFriendRequestNotificationsRead,
+} from "../client-notifications";
 
 type FriendshipDoc = {
   id: string;
@@ -231,6 +235,19 @@ export async function handleFriendsRequest(req: NextRequest): Promise<Response> 
     };
     await db.collection("friendships").insertOne(friendship);
 
+    const requester = await getUserById(db, user.id);
+    const requesterName = String(requester?.name ?? user.name ?? "Someone");
+    await createClientNotification(db, {
+      userId: String(target._id),
+      type: "friend_request",
+      title: requesterName,
+      message: "Wants to add you as a friend",
+      link: "/profile",
+      request_id: friendship.id,
+      from_user_id: user.id,
+      from_user_name: requesterName,
+    });
+
     return json({ message: "Friend request sent", request_id: friendship.id });
   } catch (e) {
     return handleAuthError(e);
@@ -261,6 +278,8 @@ export async function handleFriendsRespond(
       { id: friendship.id },
       { $set: { status, updated_at: new Date().toISOString() } }
     );
+
+    await markFriendRequestNotificationsRead(db, user.id, friendship.id);
 
     return json({
       message: action === "accept" ? "Friend request accepted" : "Friend request declined",

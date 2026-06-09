@@ -437,8 +437,14 @@ export async function handleProgress(
       const start = req.nextUrl.searchParams.get("start");
       const end = req.nextUrl.searchParams.get("end");
       if (!start || !end) return error("start and end dates are required", 400);
+      const requestedUserId =
+        req.nextUrl.searchParams.get("user_id") ?? user.id;
+      if (requestedUserId !== user.id && user.role !== "admin") {
+        return error("Access denied", 403);
+      }
+      const targetUserId = requestedUserId;
       const { getProgressJourneyStats } = await import("../data");
-      const stats = await getProgressJourneyStats(user.id, start, end);
+      const stats = await getProgressJourneyStats(targetUserId, start, end);
       return json(stats);
     }
 
@@ -587,21 +593,31 @@ export async function handleExerciseVideo(
     if (!videoId) return error("Video id required", 400);
     const db = await getDb();
 
-    if (segments[2] === "stream" && req.method === "GET") {
+    if (
+      req.method === "GET" &&
+      (segments[2] === "stream" ||
+        (segments[2] === "media" && segments[4] === "stream"))
+    ) {
       await getCurrentUser(req);
       const video = await db.collection("exercise_videos").findOne({ id: videoId });
       if (!video) return error("Video not found", 404);
 
-      const fileId = (video.video_file_id as string | undefined) ?? videoId;
+      const { getExerciseMediaStreamTarget } = await import("../exercise-media-utils");
+      const mediaId = segments[2] === "media" ? segments[3] : "legacy";
+      if (!mediaId) return error("Media id required", 400);
+
+      const target = getExerciseMediaStreamTarget(video, mediaId);
+      if (!target) return error("Media file not found", 404);
+
       const streamResponse = await respondExerciseVideoStream(
         req,
         db,
-        fileId,
-        video.video_base64
+        target.fileId,
+        target.fallbackBase64
       );
       if (streamResponse) return streamResponse;
 
-      return error("Video file not found", 404);
+      return error("Media file not found", 404);
     }
 
     if (req.method === "GET") {

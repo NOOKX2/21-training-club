@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, FieldLabel } from "@/components/ui/Input";
 import { api } from "@/lib/api-client";
 import { CardioEditor } from "@/components/admin/CardioEditor";
+import { RestDayToggle } from "@/components/admin/RestDayToggle";
 import type { ExerciseVideo, ProgramExercise, ProgramTemplate } from "@/lib/data";
 import {
   cardioToFormState,
@@ -29,10 +30,13 @@ export function ProgramBuilder({
 }) {
   const router = useRouter();
   const initialCardioForm = cardioToFormState(program.cardio);
+  const [restDay, setRestDay] = useState(Boolean(program.rest_day));
   const [exercises, setExercises] = useState<ProgramExercise[]>(
-    program.exercises.length > 0
-      ? program.exercises
-      : [{ id: uuidv4(), name: "", target_sets: 3, target_reps: "8-12", demo_video_id: null }]
+    program.rest_day
+      ? []
+      : program.exercises.length > 0
+        ? program.exercises
+        : [{ id: uuidv4(), name: "", target_sets: 3, target_reps: "8-12", demo_video_id: null }]
   );
   const [cardioMinutes, setCardioMinutes] = useState(initialCardioForm.minutes);
   const [cardioKm, setCardioKm] = useState(initialCardioForm.km);
@@ -62,6 +66,16 @@ export function ProgramBuilder({
     setExercises(exercises.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   }
 
+  function handleRestDayChange(checked: boolean) {
+    setRestDay(checked);
+    if (checked) {
+      setExercises([]);
+      setCardioMinutes("");
+      setCardioKm("");
+      setCardioNotes("");
+    }
+  }
+
   async function save() {
     setSaving(true);
     setMessage("");
@@ -72,12 +86,15 @@ export function ProgramBuilder({
         body: JSON.stringify({
           track,
           day,
-          exercises,
-          cardio: formStateToCardio({
-            minutes: cardioMinutes,
-            km: cardioKm,
-            notes: cardioNotes,
-          }),
+          exercises: restDay ? [] : exercises,
+          cardio: restDay
+            ? null
+            : formStateToCardio({
+                minutes: cardioMinutes,
+                km: cardioKm,
+                notes: cardioNotes,
+              }),
+          rest_day: restDay,
           id: program.id,
         }),
       });
@@ -134,6 +151,10 @@ export function ProgramBuilder({
       </div>
 
       <div className="border border-zinc-800 p-6">
+        <RestDayToggle checked={restDay} onChange={handleRestDayChange} className="mb-5" />
+
+        {!restDay && (
+        <>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-bold uppercase tracking-widest text-white">
             Exercises
@@ -235,6 +256,20 @@ export function ProgramBuilder({
           <Save className="h-4 w-4" />
           {saving ? "Saving…" : "Save and Publish Changes"}
         </Button>
+        </>
+        )}
+
+        {restDay && (
+          <Button
+            type="button"
+            className="mt-2 h-12 w-full gap-2 bg-[#6B93B8] text-white hover:bg-[#5a82a7]"
+            onClick={save}
+            disabled={saving}
+          >
+            <Save className="h-4 w-4" />
+            {saving ? "Saving…" : "Save Rest Day"}
+          </Button>
+        )}
       </div>
     </div>
   );

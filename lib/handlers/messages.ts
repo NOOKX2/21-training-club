@@ -19,13 +19,20 @@ export async function handleMessages(
       sender: string;
       content: string;
       attachment_base64?: string;
+      program_share?: Record<string, unknown>;
     }>(req);
-    const msg = {
+    const msg: Record<string, unknown> = {
       id: uuidv4(),
-      ...body,
+      user_id: body.user_id,
+      coach_id: body.coach_id,
+      sender: body.sender,
+      content: body.content,
       attachment_base64: body.attachment_base64 ?? "",
       timestamp: new Date().toISOString(),
     };
+    if (body.program_share && typeof body.program_share === "object") {
+      msg.program_share = body.program_share;
+    }
     await db.collection("messages").insertOne(msg);
 
     if (body.sender === "coach") {

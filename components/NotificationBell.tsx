@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Scale,
   Trophy,
+  UserPlus,
   type LucideIcon,
 } from "lucide-react";
 import { ADMIN_ACTIVITY_LABELS, type AdminActivityType } from "@/lib/admin-notifications";
@@ -94,6 +95,7 @@ const ACTIVITY_STYLES: Record<
 
 function notificationHref(notification: AppNotification, isAdmin: boolean) {
   if (notification.link) return notification.link;
+  if (notification.type === "friend_request") return "/profile";
   if (notification.type === "coach_message") return "/coach";
   if (notification.type === "client_message" && notification.client_id) {
     return `/admin/chat?client=${encodeURIComponent(notification.client_id)}`;
@@ -110,6 +112,38 @@ function isChatNotification(notification: AppNotification) {
     notification.type === "coach_message" ||
     notification.type === "client_message"
   );
+}
+
+function isFriendRequestNotification(notification: AppNotification) {
+  return notification.type === "friend_request";
+}
+
+function clientNotificationIcon(notification: AppNotification) {
+  if (isFriendRequestNotification(notification)) return UserPlus;
+  if (isChatNotification(notification)) return MessageCircle;
+  return Bell;
+}
+
+function clientNotificationStyle(notification: AppNotification) {
+  if (isFriendRequestNotification(notification)) {
+    return {
+      iconBg: "bg-emerald-500/15 text-emerald-400",
+      badge: "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30",
+      label: "Friend Request",
+    };
+  }
+  if (isChatNotification(notification)) {
+    return {
+      iconBg: "bg-[#6B93B8]/15 text-[#6B93B8]",
+      badge: "",
+      label: "",
+    };
+  }
+  return {
+    iconBg: "bg-zinc-800 text-zinc-400",
+    badge: "",
+    label: "",
+  };
 }
 
 function activityLabel(notification: AppNotification) {
@@ -275,6 +309,10 @@ export function NotificationBell({ isAdmin = false }: { isAdmin?: boolean }) {
     (n) => !n.read && isChatNotification(n)
   ).length;
 
+  const friendRequestUnread = feed.notifications.filter(
+    (n) => !n.read && isFriendRequestNotification(n)
+  ).length;
+
   return (
     <div className="relative" ref={panelRef}>
       <button
@@ -311,9 +349,13 @@ export function NotificationBell({ isAdmin = false }: { isAdmin?: boolean }) {
                   ))}
                 </p>
               )}
-              {!isAdmin && chatUnread > 0 && (
+              {!isAdmin && (chatUnread > 0 || friendRequestUnread > 0) && (
                 <p className="mt-0.5 text-[10px] text-zinc-500">
-                  {chatUnread} new chat message{chatUnread === 1 ? "" : "s"}
+                  {friendRequestUnread > 0 &&
+                    `${friendRequestUnread} friend request${friendRequestUnread === 1 ? "" : "s"}`}
+                  {friendRequestUnread > 0 && chatUnread > 0 && " · "}
+                  {chatUnread > 0 &&
+                    `${chatUnread} chat message${chatUnread === 1 ? "" : "s"}`}
                 </p>
               )}
             </div>
@@ -342,42 +384,66 @@ export function NotificationBell({ isAdmin = false }: { isAdmin?: boolean }) {
                     onOpen={openNotification}
                   />
                 ) : (
-                  <button
-                    key={notification.id}
-                    type="button"
-                    onClick={() => openNotification(notification)}
-                    className={cn(
-                      "flex w-full gap-3 border-b border-zinc-800/80 px-4 py-3 text-left transition-colors hover:bg-zinc-900",
-                      !notification.read && "bg-zinc-900/60"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                        isChatNotification(notification)
-                          ? "bg-[#6B93B8]/15 text-[#6B93B8]"
-                          : "bg-zinc-800 text-zinc-400"
-                      )}
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-white">
-                          {notification.title}
-                        </p>
-                        {!notification.read && (
-                          <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#6B93B8]" />
+                  (() => {
+                    const style = clientNotificationStyle(notification);
+                    const Icon = clientNotificationIcon(notification);
+                    return (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        onClick={() => openNotification(notification)}
+                        className={cn(
+                          "flex w-full gap-3 border-b border-zinc-800/80 px-4 py-3 text-left transition-colors hover:bg-zinc-900",
+                          !notification.read && "bg-zinc-900/60"
                         )}
-                      </div>
-                      <p className="mt-1 line-clamp-2 text-xs text-zinc-400">
-                        {notification.message}
-                      </p>
-                      <p className="mt-1 text-[10px] text-zinc-600">
-                        {formatWhen(notification.created_at)}
-                      </p>
-                    </div>
-                  </button>
+                      >
+                        <div
+                          className={cn(
+                            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+                            style.iconBg
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          {style.label && (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={cn(
+                                  "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset",
+                                  style.badge
+                                )}
+                              >
+                                {style.label}
+                              </span>
+                              {!notification.read && (
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-[#6B93B8]" />
+                              )}
+                            </div>
+                          )}
+                          <div
+                            className={cn(
+                              "flex items-start justify-between gap-2",
+                              style.label && "mt-1.5"
+                            )}
+                          >
+                            <p className="text-sm font-semibold text-white">
+                              {notification.title}
+                            </p>
+                            {!notification.read && !style.label && (
+                              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#6B93B8]" />
+                            )}
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-xs text-zinc-400">
+                            {notification.message}
+                          </p>
+                          <p className="mt-1 text-[10px] text-zinc-600">
+                            {formatWhen(notification.created_at)}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })()
                 )
               )
             )}
@@ -396,6 +462,17 @@ export function NotificationBell({ isAdmin = false }: { isAdmin?: boolean }) {
       )}
     </div>
   );
+}
+
+/** Clear unread friend-request notifications when the profile page is opened. */
+export async function markFriendRequestNotificationsRead() {
+  await api("notifications/read", {
+    method: "POST",
+    body: JSON.stringify({ type: "friend_request" }),
+  });
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("notifications:refresh"));
+  }
 }
 
 /** Call on chat pages to clear unread chat notifications for the active thread. */

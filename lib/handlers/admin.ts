@@ -7,6 +7,16 @@ import { json, error, parseBody, handleAuthError } from "../api-helpers";
 import {
   saveExerciseVideoToGridFS,
 } from "../exercise-video-storage";
+import {
+  MAX_EXERCISE_MEDIA_FILES,
+  MAX_IMAGE_BYTES,
+  MAX_IMAGE_MB,
+} from "../exercise-video-constants";
+import {
+  getExerciseMediaStreamTarget,
+  mediaTypeFromDataUrl,
+  type ExerciseMediaStored,
+} from "../exercise-media-utils";
 import { respondExerciseVideoStream, respondFormCheckVideoStream } from "../video-stream-response";
 import { normalizeDateOnly, validateAccessDates, type Gender } from "../access";
 import { serializeCoach, type CoachDoc } from "../coach-utils";
@@ -63,21 +73,12 @@ export async function handleAdmin(
     }
 
     if (resource === "stats" && req.method === "GET") {
-      const total_clients = await db.collection("users").countDocuments({ role: "user" });
-      const tier_3_count = await db.collection("users").countDocuments({ tier_level: "Tier 3" });
-      const recent = await db
-        .collection("users")
-        .find({ role: "user" })
-        .project({ _id: 0, name: 1, email: 1, created_at: 1 })
-        .sort({ created_at: -1 })
-        .limit(10)
-        .toArray();
-      return json({
-        total_clients,
-        mrr: tier_3_count * 299,
-        churn_rate: 2.5,
-        recent_activity: recent,
-      });
+      const { getAdminStats, getAdminRecentActivity } = await import("../data");
+      const [stats, recent_activity] = await Promise.all([
+        getAdminStats(),
+        getAdminRecentActivity(),
+      ]);
+      return json({ ...stats, recent_activity });
     }
 
     if (resource === "clients" && req.method === "GET") {
@@ -236,16 +237,19 @@ export async function handleAdmin(
         day: number;
         exercises: unknown[];
         cardio?: unknown;
+        rest_day?: boolean;
         id?: string;
       }>(req);
       if (!program.track || !program.day) {
         return error("Track and day are required", 400);
       }
+      const restDay = Boolean(program.rest_day);
       const doc = {
         track: program.track,
         day: program.day,
-        exercises: program.exercises ?? [],
-        cardio: program.cardio ?? null,
+        exercises: restDay ? [] : (program.exercises ?? []),
+        cardio: restDay ? null : (program.cardio ?? null),
+        rest_day: restDay,
         id: program.id ?? uuidv4(),
         updated_at: new Date().toISOString(),
       };
@@ -271,24 +275,31 @@ export async function handleAdmin(
 
     if (
       resource === "exercise-videos" &&
-      segments[3] === "stream" &&
-      req.method === "GET"
+      req.method === "GET" &&
+      (segments[3] === "stream" ||
+        (segments[3] === "media" && segments[5] === "stream"))
     ) {
       const videoId = segments[2];
       if (!videoId) return error("Video id required", 400);
       const video = await db.collection("exercise_videos").findOne({ id: videoId });
       if (!video) return error("Video not found", 404);
 
-      const fileId = (video.video_file_id as string | undefined) ?? videoId;
+      const mediaId =
+        segments[3] === "media" ? segments[4] : "legacy";
+      if (!mediaId) return error("Media id required", 400);
+
+      const target = getExerciseMediaStreamTarget(video, mediaId);
+      if (!target) return error("Media file not found", 404);
+
       const streamResponse = await respondExerciseVideoStream(
         req,
         db,
-        fileId,
-        video.video_base64
+        target.fileId,
+        target.fallbackBase64
       );
       if (streamResponse) return streamResponse;
 
-      return error("Video file not found", 404);
+      return error("Media file not found", 404);
     }
 
     if (resource === "exercise-videos" && req.method === "GET") {
@@ -305,11 +316,18 @@ export async function handleAdmin(
         name: string;
         video_base64?: string;
         video_url?: string;
+        media_files?: Array<{ data_base64: string }>;
         tags?: string[];
       }>(req);
       if (!video.name?.trim()) return error("Exercise title is required", 400);
-      if (!video.video_base64 && !video.video_url) {
-        return error("Video file is required", 400);
+
+      const uploads =
+        video.media_files?.filter((file) => file.data_base64?.trim()) ?? [];
+      if (!uploads.length && !video.video_base64 && !video.video_url) {
+        return error("At least one image or video file is required", 400);
+      }
+      if (uploads.length > MAX_EXERCISE_MEDIA_FILES) {
+        return error(`Maximum ${MAX_EXERCISE_MEDIA_FILES} files per exercise`, 400);
       }
 
       const id = uuidv4();
@@ -319,22 +337,63 @@ export async function handleAdmin(
         video_url: video.video_url ?? "",
         tags: video.tags ?? [],
         created_at: new Date().toISOString(),
+        media_items: [] as ExerciseMediaStored[],
       };
 
-      if (video.video_base64) {
+      const mediaItems: ExerciseMediaStored[] = [];
+      const filesToStore =
+        uploads.length > 0
+          ? uploads.map((file) => file.data_base64)
+          : video.video_base64
+            ? [video.video_base64]
+            : [];
+
+      for (const dataUrl of filesToStore) {
+        const mediaId = uuidv4();
+        const type = mediaTypeFromDataUrl(dataUrl);
+        const fileId = `${id}__${mediaId}`;
+
+        if (type === "image") {
+          const comma = dataUrl.indexOf(",");
+          const approxBytes = comma >= 0 ? Math.ceil((dataUrl.length - comma - 1) * 0.75) : 0;
+          if (approxBytes > MAX_IMAGE_BYTES) {
+            return error(`Each image must be under ${MAX_IMAGE_MB}MB`, 400);
+          }
+        }
+
         try {
           const { contentType, size } = await saveExerciseVideoToGridFS(
             db,
-            id,
-            video.video_base64
+            fileId,
+            dataUrl
           );
-          doc.video_file_id = id;
-          doc.content_type = contentType;
-          doc.file_size = size;
+          mediaItems.push({
+            id: mediaId,
+            type,
+            file_id: fileId,
+            content_type: contentType,
+          });
+          if (!doc.video_file_id && type === "video") {
+            doc.video_file_id = fileId;
+            doc.content_type = contentType;
+            doc.file_size = size;
+          }
         } catch (e) {
           const message = e instanceof Error ? e.message : "Upload failed";
           return error(message, 400);
         }
+      }
+
+      if (mediaItems.length > 0) {
+        doc.media_items = mediaItems;
+      } else if (video.video_url) {
+        doc.media_items = [
+          {
+            id: uuidv4(),
+            type: "video",
+            video_url: video.video_url,
+          },
+        ];
       }
 
       await db.collection("exercise_videos").insertOne(doc);
@@ -444,8 +503,10 @@ export async function handleAdmin(
         day: number;
         exercises: unknown[];
         cardio?: unknown;
+        rest_day?: boolean;
       }>(req);
       const week = body.week ?? 1;
+      const restDay = Boolean(body.rest_day);
       const result = await db.collection("custom_programs").updateOne(
         { user_email: body.client_email, week, day: body.day },
         {
@@ -454,8 +515,9 @@ export async function handleAdmin(
             user_email: body.client_email,
             week,
             day: body.day,
-            exercises: body.exercises,
-            cardio: body.cardio ?? null,
+            exercises: restDay ? [] : (body.exercises ?? []),
+            cardio: restDay ? null : (body.cardio ?? null),
+            rest_day: restDay,
             updated_at: new Date().toISOString(),
           },
         },

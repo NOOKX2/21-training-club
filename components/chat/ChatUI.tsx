@@ -1,10 +1,12 @@
 "use client";
 
-import { Paperclip, Send } from "lucide-react";
+import { Dumbbell, Paperclip, Send } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { MOBILE_FILE_INPUT_CLASS } from "@/lib/file-upload";
 import { User } from "lucide-react";
+import { ProgramShareCard } from "@/components/chat/ProgramShareCard";
 import type { Message } from "@/lib/data";
+import type { ProgramSharePayload } from "@/lib/program-share-types";
 import { cn } from "@/lib/utils";
 
 function formatTime(timestamp: string) {
@@ -39,6 +41,56 @@ function dateKey(timestamp: string) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
+function parseLegacyProgramShare(content: string): ProgramSharePayload | null {
+  const header = content.match(/📋\s*Program\s*—\s*Week\s*(\d+)\s*,\s*Day\s*(\d+)/i);
+  if (!header) return null;
+
+  const week = Number(header[1]);
+  const day = Number(header[2]);
+  const exercises: ProgramSharePayload["exercises"] = [];
+  let cardio: ProgramSharePayload["cardio"] = null;
+  let question: string | undefined;
+
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    const exerciseMatch = trimmed.match(/^•\s*(.+?)\s*—\s*(\d+)\s*sets?\s*×\s*(.+?)\s*reps?$/i);
+    if (exerciseMatch) {
+      exercises.push({
+        name: exerciseMatch[1].trim(),
+        target_sets: Number(exerciseMatch[2]),
+        target_reps: exerciseMatch[3].trim(),
+      });
+      continue;
+    }
+    const cardioMatch = trimmed.match(/^Cardio:\s*(.+)$/i);
+    if (cardioMatch) {
+      const parts = cardioMatch[1].split("·").map((part) => part.trim());
+      const duration = parts.find((part) => part.endsWith("min"));
+      const distance = parts.find((part) => part.endsWith("km"));
+      cardio = {
+        duration_minutes: duration ? Number(duration.replace(/\D/g, "")) || null : null,
+        distance_km: distance ? Number(distance.replace(/[^\d.]/g, "")) || null : null,
+        notes: parts.filter((part) => !part.endsWith("min") && !part.endsWith("km")).join(" · ") || undefined,
+      };
+      continue;
+    }
+    const questionMatch = trimmed.match(/^❓\s*(.+)$/);
+    if (questionMatch) {
+      question = questionMatch[1].trim();
+    }
+  }
+
+  return { week, day, exercises, cardio, question };
+}
+
+function resolveProgramShare(message: Message): ProgramSharePayload | null {
+  if (message.program_share) return message.program_share;
+  if (message.content?.includes("📋 Program")) {
+    return parseLegacyProgramShare(message.content);
+  }
+  return null;
+}
+
 function ChatBubble({
   message,
   isOwn,
@@ -54,7 +106,9 @@ function ChatBubble({
   peerInitials?: string;
   variant?: "default" | "coach";
 }) {
-  const hasText = message.content && message.content !== "[Attachment]";
+  const programShare = resolveProgramShare(message);
+  const hasText =
+    !programShare && message.content && message.content !== "[Attachment]";
   const hasAttachment = Boolean(message.attachment_base64);
   const isCoach = variant === "coach";
 
@@ -84,7 +138,10 @@ function ChatBubble({
 
       <div
         className={cn(
-          "flex max-w-[min(88%,18rem)] flex-col gap-1 sm:max-w-[min(85%,22rem)]",
+          "flex flex-col gap-1",
+          programShare
+            ? "max-w-[min(96%,20rem)] sm:max-w-md"
+            : "max-w-[min(88%,18rem)] sm:max-w-[min(85%,22rem)]",
           isOwn ? "items-end" : "items-start"
         )}
       >
@@ -107,7 +164,7 @@ function ChatBubble({
           )}
         >
           {hasAttachment && (
-            <div className={cn(hasText ? "border-b border-white/10" : "")}>
+            <div className={cn(hasText || programShare ? "border-b border-white/10" : "")}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={message.attachment_base64}
@@ -116,11 +173,13 @@ function ChatBubble({
               />
             </div>
           )}
-          {hasText && (
+          {programShare ? (
+            <ProgramShareCard share={programShare} />
+          ) : hasText ? (
             <p className="whitespace-pre-wrap break-words px-4 py-3 text-[15px] leading-relaxed text-white/90">
               {message.content}
             </p>
-          )}
+          ) : null}
         </div>
 
         <span className="px-1 text-[11px] text-white/45 sm:text-[10px] sm:text-white/35">
@@ -209,6 +268,8 @@ export function ChatComposer({
   onContentChange,
   onSend,
   onAttach,
+  onPickProgram,
+  pickProgramLabel = "Send program",
   placeholder = "Type a message...",
   sendLabel = "Send",
   canSend,
@@ -218,6 +279,8 @@ export function ChatComposer({
   onContentChange: (value: string) => void;
   onSend: () => void;
   onAttach: (file: File | null) => void;
+  onPickProgram?: () => void;
+  pickProgramLabel?: string;
   placeholder?: string;
   sendLabel?: string;
   canSend?: boolean;
@@ -265,6 +328,22 @@ export function ChatComposer({
         >
           <Paperclip className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
+        {onPickProgram && (
+          <button
+            type="button"
+            aria-label={pickProgramLabel}
+            title={pickProgramLabel}
+            onClick={onPickProgram}
+            className={cn(
+              "flex shrink-0 items-center justify-center text-white/45 transition-colors hover:text-white",
+              isCoach
+                ? "mb-0.5 h-9 w-9 rounded-full border border-white/10 bg-white/[0.06] hover:bg-white/10 sm:mb-0 sm:h-10 sm:w-10"
+                : "h-10 w-10 rounded-xl hover:bg-white/5"
+            )}
+          >
+            <Dumbbell className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
+        )}
         <textarea
           rows={1}
           placeholder={placeholder}

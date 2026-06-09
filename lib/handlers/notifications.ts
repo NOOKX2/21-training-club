@@ -18,6 +18,7 @@ export async function handleNotifications(
         id?: string;
         all?: boolean;
         client_id?: string;
+        type?: string;
       }>(req);
 
       const filter: Record<string, unknown> = isAdmin
@@ -33,6 +34,15 @@ export async function handleNotifications(
           {
             audience: "admin",
             client_id: body.client_id,
+            read: false,
+          },
+          { $set: { read: true } }
+        );
+      } else if (body.type && !isAdmin) {
+        await db.collection("notifications").updateMany(
+          {
+            user_id: user.id,
+            type: body.type,
             read: false,
           },
           { $set: { read: true } }

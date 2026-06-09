@@ -2,10 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText } from "lucide-react";
+import { Dumbbell, FileText } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ChatComposer, ChatMessageList } from "@/components/chat/ChatUI";
+import {
+  ExerciseProgramPickerModal,
+  type ProgramShareDraft,
+} from "@/components/coach/ExerciseProgramPickerModal";
 import { CoachWeeklyReportsModal } from "@/components/CoachWeeklyReportsModal";
+import {
+  buildProgramSharePayload,
+  formatProgramShareMessage,
+} from "@/lib/format-program-share";
 import { markChatNotificationsRead } from "@/components/NotificationBell";
 import { useLanguage } from "@/components/LanguageProvider";
 import { api } from "@/lib/api-client";
@@ -19,18 +27,22 @@ export function CoachClient({
   coachId,
   initialMessages,
   initialReports,
+  programStartDate,
 }: {
   userId: string;
   coaches: Coach[];
   coachId: string;
   initialMessages: Message[];
   initialReports: WeeklyReport[];
+  programStartDate: string;
 }) {
   const router = useRouter();
   const { t } = useLanguage();
   const [content, setContent] = useState("");
   const [attachment, setAttachment] = useState("");
   const [reportsOpen, setReportsOpen] = useState(false);
+  const [programPickerOpen, setProgramPickerOpen] = useState(false);
+  const [programDraft, setProgramDraft] = useState<ProgramShareDraft | null>(null);
   const [reports, setReports] = useState(initialReports);
   const [sending, setSending] = useState(false);
 
@@ -53,22 +65,49 @@ export function CoachClient({
     setReports(initialReports);
   }, [initialReports]);
 
+  function buildOutgoingMessage() {
+    if (programDraft) {
+      return formatProgramShareMessage({
+        week: programDraft.week,
+        day: programDraft.day,
+        exercises: programDraft.exercises,
+        cardio: programDraft.cardio,
+        question: content.trim() || undefined,
+      });
+    }
+    return content.trim() || "[Attachment]";
+  }
+
   async function send() {
-    if ((!content.trim() && !attachment) || !coachId || sending) return;
+    const outgoing = buildOutgoingMessage();
+    if ((!outgoing || outgoing === "[Attachment]") && !attachment) return;
+    if (!coachId || sending) return;
     setSending(true);
     try {
+      const programShare = programDraft
+        ? buildProgramSharePayload({
+            week: programDraft.week,
+            day: programDraft.day,
+            exercises: programDraft.exercises,
+            cardio: programDraft.cardio,
+            question: content.trim() || undefined,
+          })
+        : undefined;
+
       await api("messages", {
         method: "POST",
         body: JSON.stringify({
           user_id: userId,
           coach_id: coachId,
           sender: "user",
-          content: content.trim() || "[Attachment]",
+          content: outgoing,
           attachment_base64: attachment,
+          program_share: programShare,
         }),
       });
       setContent("");
       setAttachment("");
+      setProgramDraft(null);
       router.refresh();
     } finally {
       setSending(false);
@@ -149,6 +188,30 @@ export function CoachClient({
         emptyHint={t("coach.emptyHint")}
       />
 
+      {programDraft && (
+        <div className="shrink-0 border-t border-white/10 px-3 py-2 sm:px-5">
+          <div className="flex items-center gap-3 rounded-xl border border-[#6B93B8]/30 bg-[#6B93B8]/10 p-2">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#6B93B8]/20 text-[#6B93B8] sm:h-14 sm:w-14">
+              <Dumbbell className="h-5 w-5 sm:h-6 sm:w-6" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-white">{t("coach.programAttached")}</p>
+              <p className="text-[10px] text-white/45">
+                {t("common.week")} {programDraft.week} · {t("common.day")} {programDraft.day} ·{" "}
+                {programDraft.exercises.length} {t("coach.exercisesSelected")}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setProgramDraft(null)}
+              className="text-xs text-white/45 hover:text-white"
+            >
+              {t("common.remove")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {attachment && (
         <div className="shrink-0 border-t border-white/10 px-3 py-2 sm:px-5">
           <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/40 p-2">
@@ -169,13 +232,22 @@ export function CoachClient({
         </div>
       )}
 
+      <ExerciseProgramPickerModal
+        open={programPickerOpen}
+        onClose={() => setProgramPickerOpen(false)}
+        programStartDate={programStartDate}
+        onConfirm={setProgramDraft}
+      />
+
       <ChatComposer
         variant="coach"
         content={content}
         onContentChange={setContent}
         onSend={send}
         onAttach={onAttach}
-        canSend={Boolean(content.trim() || attachment) && !sending}
+        onPickProgram={() => setProgramPickerOpen(true)}
+        pickProgramLabel={t("coach.pickProgram")}
+        canSend={Boolean(content.trim() || attachment || programDraft) && !sending}
         sendLabel={sending ? t("common.sending") : t("common.send")}
         placeholder={t("coach.messagePlaceholder")}
       />

@@ -8,6 +8,11 @@ import { Input, FieldLabel } from "@/components/ui/Input";
 import { api } from "@/lib/api-client";
 import type { Gender } from "@/lib/access";
 import type { AdminClient } from "@/lib/data";
+import {
+  MEMBERSHIP_DURATION_OPTIONS,
+  computeAccessExpiry,
+  type MembershipDurationValue,
+} from "@/lib/membership-duration";
 
 const TIER_OPTIONS = [
   { value: "Tier 1", label: "Tier 1 - The Engine" },
@@ -43,10 +48,47 @@ export function CreateClientModal({
     password: "",
     tier_level: "Tier 1",
     gender: "prefer_not_to_say" as Gender,
+    membership_duration: "" as MembershipDurationValue,
     access_starts_at: todayDateInput(),
     access_expires_at: "",
     tdee: "",
   });
+
+  function applyDuration(
+    duration: MembershipDurationValue,
+    startsAt: string
+  ): string {
+    if (duration === "none") return "";
+    if (duration === "custom" || !duration) return form.access_expires_at;
+    return computeAccessExpiry(startsAt, duration);
+  }
+
+  function setMembershipDuration(duration: MembershipDurationValue) {
+    setForm((current) => ({
+      ...current,
+      membership_duration: duration,
+      access_expires_at: applyDuration(duration, current.access_starts_at),
+    }));
+  }
+
+  function setAccessStartsAt(startsAt: string) {
+    setForm((current) => {
+      const duration = current.membership_duration;
+      const expiresAt =
+        duration && duration !== "custom" && duration !== "none"
+          ? computeAccessExpiry(startsAt, duration)
+          : current.access_expires_at;
+      return { ...current, access_starts_at: startsAt, access_expires_at: expiresAt };
+    });
+  }
+
+  function setAccessExpiresAt(expiresAt: string) {
+    setForm((current) => ({
+      ...current,
+      membership_duration: expiresAt ? "custom" : "none",
+      access_expires_at: expiresAt,
+    }));
+  }
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -179,15 +221,33 @@ export function CreateClientModal({
             />
           </div>
 
+          <div>
+            <FieldLabel>Membership Duration</FieldLabel>
+            <select
+              value={form.membership_duration}
+              onChange={(e) =>
+                setMembershipDuration(e.target.value as MembershipDurationValue)
+              }
+              className="w-full border border-zinc-700 bg-black px-4 py-3 text-sm text-white"
+            >
+              {MEMBERSHIP_DURATION_OPTIONS.map((opt) => (
+                <option key={opt.value || "default"} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[10px] text-zinc-600">
+              Picks expiry from Access Starts — or choose Custom / No expiry
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <FieldLabel>Access Starts</FieldLabel>
               <Input
                 type="date"
                 value={form.access_starts_at}
-                onChange={(e) =>
-                  setForm({ ...form, access_starts_at: e.target.value })
-                }
+                onChange={(e) => setAccessStartsAt(e.target.value)}
                 required
               />
             </div>
@@ -196,11 +256,17 @@ export function CreateClientModal({
               <Input
                 type="date"
                 value={form.access_expires_at}
-                onChange={(e) =>
-                  setForm({ ...form, access_expires_at: e.target.value })
+                onChange={(e) => setAccessExpiresAt(e.target.value)}
+                disabled={
+                  form.membership_duration !== "" &&
+                  form.membership_duration !== "custom"
                 }
               />
-              <p className="mt-1 text-[10px] text-zinc-600">Leave empty for no expiry</p>
+              <p className="mt-1 text-[10px] text-zinc-600">
+                {form.membership_duration === "custom" || !form.membership_duration
+                  ? "Leave empty for no expiry"
+                  : "Auto-filled from duration"}
+              </p>
             </div>
           </div>
 

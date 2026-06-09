@@ -1,5 +1,6 @@
 import { CoachClient } from "@/components/CoachClient";
 import { getCoaches, getMessages, getWeeklyReports } from "@/lib/data";
+import { resolveProgramStartDate } from "@/lib/program-schedule";
 import { requireAppUser } from "@/lib/session";
 
 export default async function CoachPage({
@@ -23,6 +24,7 @@ export default async function CoachPage({
       coachId={coachId}
       initialMessages={messages}
       initialReports={weeklyReports}
+      programStartDate={resolveProgramStartDate(user)}
     />
   );
 }
