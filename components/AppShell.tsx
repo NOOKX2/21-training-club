@@ -24,7 +24,6 @@ import {
 } from "@/components/MuscleStreakContext";
 import { api, type User } from "@/lib/api-client";
 import { clientGlassNav } from "@/lib/client-ui";
-import type { DailyMuscleStatus } from "@/lib/muscle-streak-types";
 import { isAdminRole } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -195,8 +194,6 @@ function AppShellHeader({ user }: { user: User }) {
 
   const isVip = user.tier_level === "Tier 3" || user.tier_level === "Admin";
 
-  if (!streakStatus) return null;
-
   return (
     <div className="flex w-full items-center gap-2 py-3 lg:grid lg:min-h-[76px] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center lg:gap-x-6 lg:py-4">
       <div className="hidden min-w-0 items-center gap-2 justify-self-start lg:flex">
@@ -271,18 +268,16 @@ function AppShellHeader({ user }: { user: User }) {
 
 export function AppShell({
   user,
-  muscleStatus,
   children,
 }: {
   user: User;
-  muscleStatus: DailyMuscleStatus;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
 
   return (
     <LanguageProvider>
-    <MuscleStreakProvider initialStatus={muscleStatus}>
+    <MuscleStreakProvider>
       <div className="relative min-h-screen bg-[#0d0d0d] font-[family-name:var(--font-dm-sans)] text-[#F0F4F8]">
         <ClientAppBackground />
 

@@ -7,6 +7,8 @@ import { handleMessages, handleCoaches } from "./handlers/messages";
 import { handleNotifications } from "./handlers/notifications";
 import { handleAdmin } from "./handlers/admin";
 import { handleFriends } from "./handlers/friends";
+import { handleAppPages } from "./handlers/app-pages";
+import { handleAppShell } from "./handlers/app-shell";
 import {
   handleFormChecks,
   handleStreak,
@@ -59,6 +61,10 @@ export async function handleApi(
       return handleAdmin(req, ["admin", ...rest]);
     case "friends":
       return handleFriends(req, ["friends", ...rest]);
+    case "app-pages":
+      return handleAppPages(req, ["app-pages", ...rest]);
+    case "app-shell":
+      return handleAppShell(req, ["app-shell", ...rest]);
     case "form-checks":
       return handleFormChecks(req, ["form-checks", ...rest]);
     case "streak":

@@ -17,6 +17,7 @@ import {
   type DailyMuscleStatus,
   type MuscleTask,
 } from "@/lib/muscle-streak-types";
+import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 type RewardState = {
@@ -140,19 +141,34 @@ function MuscleRewardBow({
   );
 }
 
+const EMPTY_MUSCLE_STATUS: DailyMuscleStatus = {
+  today: { workout: false, meal: false },
+  completed_count: 0,
+  all_complete: false,
+  streak_days: 0,
+};
+
 export function MuscleStreakProvider({
-  initialStatus,
   children,
 }: {
-  initialStatus: DailyMuscleStatus;
   children: React.ReactNode;
 }) {
-  const [status, setStatus] = useState(initialStatus);
+  const [status, setStatus] = useState<DailyMuscleStatus>(EMPTY_MUSCLE_STATUS);
   const [reward, setReward] = useState<RewardState | null>(null);
 
   useEffect(() => {
-    setStatus(initialStatus);
-  }, [initialStatus]);
+    let cancelled = false;
+    api<DailyMuscleStatus>("app-shell/muscle-status")
+      .then((next) => {
+        if (!cancelled) setStatus(next);
+      })
+      .catch(() => {
+        // Keep empty status if fetch fails.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const celebrateMuscleTask = useCallback((task: MuscleTask) => {
     let celebrated = false;
@@ -193,5 +209,5 @@ export function useMuscleReward() {
 
 export function useMuscleStreakStatus() {
   const ctx = useContext(MuscleStreakContext);
-  return ctx?.status ?? null;
+  return ctx?.status ?? EMPTY_MUSCLE_STATUS;
 }

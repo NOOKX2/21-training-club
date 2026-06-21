@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import jwt from "jsonwebtoken";
@@ -41,7 +42,7 @@ async function userFromAccessOrRefreshToken(
   }
 }
 
-export async function getSessionUser(): Promise<User | null> {
+export const getSessionUser = cache(async (): Promise<User | null> => {
   const cookieStore = await cookies();
   const access = cookieStore.get("access_token")?.value;
   if (access) {
@@ -53,16 +54,16 @@ export async function getSessionUser(): Promise<User | null> {
     return userFromAccessOrRefreshToken(refresh, "refresh");
   }
   return null;
-}
+});
 
-export async function requireUser(): Promise<User> {
+export const requireUser = cache(async (): Promise<User> => {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   return user;
-}
+});
 
 /** app/(app) — block admin; they belong in app/(admin) */
-export async function requireAppUser(): Promise<User> {
+export const requireAppUser = cache(async (): Promise<User> => {
   const user = await requireUser();
   if (isAdminRole(user.role)) redirect(ADMIN_HOME);
 
@@ -86,11 +87,11 @@ export async function requireAppUser(): Promise<User> {
     ),
     profile_photo_url: user.profile_photo_url ?? null,
   };
-}
+});
 
 /** app/(admin) — block regular users */
-export async function requireAdmin(): Promise<User> {
+export const requireAdmin = cache(async (): Promise<User> => {
   const user = await requireUser();
   if (!isAdminRole(user.role)) redirect(USER_HOME);
   return user;
-}
+});

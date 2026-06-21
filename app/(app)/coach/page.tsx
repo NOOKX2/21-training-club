@@ -1,30 +1,11 @@
-import { CoachClient } from "@/components/CoachClient";
-import { getCoaches, getMessages, getWeeklyReports } from "@/lib/data";
-import { resolveProgramStartDate } from "@/lib/program-schedule";
-import { requireAppUser } from "@/lib/session";
+import { Suspense } from "react";
+import { CoachPageLoader } from "@/components/page-loaders/CoachPageLoader";
+import { AppPageSkeleton } from "@/components/AppPageSkeleton";
 
-export default async function CoachPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ coach?: string }>;
-}) {
-  const user = await requireAppUser();
-  const params = await searchParams;
-  const coaches = await getCoaches();
-  const coachId =
-    params.coach && coaches.some((c) => c.id === params.coach)
-      ? params.coach
-      : (coaches[0]?.id ?? "");
-  const messages = coachId ? await getMessages(user.id, coachId) : [];
-  const weeklyReports = await getWeeklyReports(user.id);
+export default function CoachPage() {
   return (
-    <CoachClient
-      userId={user.id}
-      coaches={coaches}
-      coachId={coachId}
-      initialMessages={messages}
-      initialReports={weeklyReports}
-      programStartDate={resolveProgramStartDate(user)}
-    />
+    <Suspense fallback={<AppPageSkeleton />}>
+      <CoachPageLoader />
+    </Suspense>
   );
 }
