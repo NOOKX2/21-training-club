@@ -30,6 +30,16 @@ type MuscleStreakContextValue = {
 };
 
 const MuscleStreakContext = createContext<MuscleStreakContextValue | null>(null);
+const MuscleStreakSetStatusContext = createContext<
+  ((status: DailyMuscleStatus) => void) | null
+>(null);
+
+export const EMPTY_MUSCLE_STATUS: DailyMuscleStatus = {
+  today: { workout: false, meal: false },
+  completed_count: 0,
+  all_complete: false,
+  streak_days: 0,
+};
 
 function BowRibbon({ className }: { className?: string }) {
   return (
@@ -140,11 +150,23 @@ function MuscleRewardBow({
   );
 }
 
+export function MuscleStreakStatusSync({
+  status,
+}: {
+  status: DailyMuscleStatus;
+}) {
+  const setStatus = useContext(MuscleStreakSetStatusContext);
+  useEffect(() => {
+    setStatus?.(status);
+  }, [status, setStatus]);
+  return null;
+}
+
 export function MuscleStreakProvider({
-  initialStatus,
+  initialStatus = EMPTY_MUSCLE_STATUS,
   children,
 }: {
-  initialStatus: DailyMuscleStatus;
+  initialStatus?: DailyMuscleStatus;
   children: React.ReactNode;
 }) {
   const [status, setStatus] = useState(initialStatus);
@@ -172,12 +194,14 @@ export function MuscleStreakProvider({
   );
 
   return (
-    <MuscleStreakContext.Provider value={value}>
-      {children}
-      {reward && (
-        <MuscleRewardBow reward={reward} onDone={() => setReward(null)} />
-      )}
-    </MuscleStreakContext.Provider>
+    <MuscleStreakSetStatusContext.Provider value={setStatus}>
+      <MuscleStreakContext.Provider value={value}>
+        {children}
+        {reward && (
+          <MuscleRewardBow reward={reward} onDone={() => setReward(null)} />
+        )}
+      </MuscleStreakContext.Provider>
+    </MuscleStreakSetStatusContext.Provider>
   );
 }
 

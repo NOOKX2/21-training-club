@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { AppPageLoading } from "@/components/AppPageLoading";
 import { NutritionClient } from "@/components/NutritionClient";
 import {
   getMealsForUser,
@@ -14,14 +16,12 @@ function parseNutritionDate(raw?: string): string {
   return raw;
 }
 
-export default async function NutritionPage({
-  searchParams,
+async function NutritionPageContent({
+  selectedDate,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  selectedDate: string;
 }) {
   const user = await requireAppUser();
-  const params = await searchParams;
-  const selectedDate = parseNutritionDate(params.date);
   const today = localDateKey(new Date());
   const [meals, scoreTrend, limits] = await Promise.all([
     getMealsForUser(user.id, selectedDate),
@@ -38,5 +38,20 @@ export default async function NutritionPage({
       selectedDate={selectedDate}
       isToday={selectedDate === today}
     />
+  );
+}
+
+export default async function NutritionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
+  const params = await searchParams;
+  const selectedDate = parseNutritionDate(params.date);
+
+  return (
+    <Suspense key={selectedDate} fallback={<AppPageLoading />}>
+      <NutritionPageContent selectedDate={selectedDate} />
+    </Suspense>
   );
 }
