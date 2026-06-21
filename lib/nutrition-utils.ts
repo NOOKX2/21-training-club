@@ -20,15 +20,50 @@ const RATING_LABELS: Record<number, string> = {
   1: "Poor",
 };
 
+export type MealMacroFields = {
+  coach_reviewed?: boolean;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  ai_protein?: number;
+  ai_carbs?: number;
+  ai_fat?: number;
+};
+
+export function getEffectiveMealMacros(
+  meal: MealMacroFields
+): { protein: number; carbs: number; fat: number } {
+  if (meal.coach_reviewed) {
+    return {
+      protein: meal.protein ?? 0,
+      carbs: meal.carbs ?? 0,
+      fat: meal.fat ?? 0,
+    };
+  }
+  return {
+    protein: meal.ai_protein ?? 0,
+    carbs: meal.ai_carbs ?? 0,
+    fat: meal.ai_fat ?? 0,
+  };
+}
+
+export function hasEffectiveMealMacros(meal: MealMacroFields): boolean {
+  const macros = getEffectiveMealMacros(meal);
+  return macros.protein > 0 || macros.carbs > 0 || macros.fat > 0;
+}
+
 export function sumMealMacros(
-  meals: Array<{ protein?: number; carbs?: number; fat?: number }>
+  meals: Array<MealMacroFields>
 ): { protein: number; carbs: number; fat: number } {
   return meals.reduce<{ protein: number; carbs: number; fat: number }>(
-    (acc, meal) => ({
-      protein: acc.protein + (meal.protein ?? 0),
-      carbs: acc.carbs + (meal.carbs ?? 0),
-      fat: acc.fat + (meal.fat ?? 0),
-    }),
+    (acc, meal) => {
+      const macros = getEffectiveMealMacros(meal);
+      return {
+        protein: acc.protein + macros.protein,
+        carbs: acc.carbs + macros.carbs,
+        fat: acc.fat + macros.fat,
+      };
+    },
     { protein: 0, carbs: 0, fat: 0 }
   );
 }
@@ -49,15 +84,12 @@ export function limitMacrosToKcal(macros: {
   return macros.protein * 4 + macros.carbs * 4 + macros.fat * 8;
 }
 
-export function formatMealMacros(meal: {
-  protein?: number;
-  carbs?: number;
-  fat?: number;
-}): string | null {
+export function formatMealMacros(meal: MealMacroFields): string | null {
+  const macros = getEffectiveMealMacros(meal);
   const parts: string[] = [];
-  if (meal.protein != null) parts.push(`P ${meal.protein}g`);
-  if (meal.carbs != null) parts.push(`C ${meal.carbs}g`);
-  if (meal.fat != null) parts.push(`F ${meal.fat}g`);
+  if (macros.protein > 0) parts.push(`P ${macros.protein}g`);
+  if (macros.carbs > 0) parts.push(`C ${macros.carbs}g`);
+  if (macros.fat > 0) parts.push(`F ${macros.fat}g`);
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 

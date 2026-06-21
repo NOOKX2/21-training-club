@@ -1,3 +1,5 @@
+import { isHeicFile } from "./image-utils";
+
 /** iOS Safari often ignores file inputs with `display: none`. */
 export const MOBILE_FILE_INPUT_CLASS =
   "pointer-events-none fixed left-0 top-0 m-0 h-px w-px overflow-hidden border-0 p-0 opacity-0";
@@ -18,18 +20,24 @@ export function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-export function readImageDataUrl(
-  file: File,
+async function heicToJpegBlob(file: File): Promise<Blob> {
+  const heic2any = (await import("heic2any")).default;
+  const result = await heic2any({
+    blob: file,
+    toType: "image/jpeg",
+    quality: 0.8,
+  });
+  return Array.isArray(result) ? result[0] : result;
+}
+
+function compressImageBlob(
+  blob: Blob,
   maxSize = 960,
   quality = 0.8
 ): Promise<string> {
-  if (!file.type.startsWith("image/")) {
-    return readFileAsDataUrl(file);
-  }
-
-  const compressed = new Promise<string>((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(blob);
     img.onload = () => {
       URL.revokeObjectURL(url);
       let { width, height } = img;
@@ -55,6 +63,21 @@ export function readImageDataUrl(
     };
     img.src = url;
   });
+}
 
-  return compressed.catch(() => readFileAsDataUrl(file));
+export async function readImageDataUrl(
+  file: File,
+  maxSize = 960,
+  quality = 0.8
+): Promise<string> {
+  if (!file.type.startsWith("image/") && !isHeicFile(file)) {
+    return readFileAsDataUrl(file);
+  }
+
+  let source: Blob = file;
+  if (isHeicFile(file)) {
+    source = await heicToJpegBlob(file);
+  }
+
+  return compressImageBlob(source, maxSize, quality);
 }

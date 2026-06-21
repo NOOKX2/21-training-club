@@ -12,6 +12,7 @@ import {
   formatMealMacros,
   mealDisplayName,
 } from "@/lib/nutrition-utils";
+import { browserDisplayableImageSrc } from "@/lib/image-utils";
 import { cn } from "@/lib/utils";
 import { formatDateOnly } from "./admin-utils";
 
@@ -146,14 +147,18 @@ export function NutritionReview({
                 {meals.map((m) => (
                   <li key={m.id} className="px-6 py-4">
                     <div className="flex gap-4">
-                      {m.photo_base64 && (
+                      {browserDisplayableImageSrc(m.photo_base64) ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={m.photo_base64}
+                          src={browserDisplayableImageSrc(m.photo_base64)!}
                           alt=""
                           className="h-20 w-20 object-cover"
                         />
-                      )}
+                      ) : m.photo_base64 ? (
+                        <div className="flex h-20 w-20 items-center justify-center bg-zinc-900 px-2 text-center text-[10px] text-zinc-500">
+                          HEIC photo — ask client to re-upload
+                        </div>
+                      ) : null}
                       <div className="min-w-0 flex-1">
                         <p className="font-bold uppercase text-white">
                           {mealDisplayName(m)}

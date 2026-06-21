@@ -92,33 +92,87 @@ export async function getTokenFromRequest(req: NextRequest): Promise<string | nu
   return token;
 }
 
-export async function getCurrentUser(req: NextRequest): Promise<AuthUser> {
-  const token = await getTokenFromRequest(req);
-  if (!token) throw new AuthError("Not authenticated", 401);
+async function getRefreshTokenFromRequest(req: NextRequest): Promise<string | null> {
+  let token = req.cookies.get("refresh_token")?.value ?? null;
+  if (!token) {
+    const cookieStore = await cookies();
+    token = cookieStore.get("refresh_token")?.value ?? null;
+  }
+  return token;
+}
+
+async function loadUserById(userId: string): Promise<AuthUser> {
+  const db = await getDb();
+  const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+  if (!user) throw new AuthError("User not found", 401);
+  const access = checkUserAccess(user as Record<string, unknown>);
+  if (!access.active) {
+    throw new AuthError(access.message ?? "Account access denied", 403);
+  }
+  return sanitizeUser(user as Record<string, unknown>);
+}
+
+async function userFromRefreshToken(
+  req: NextRequest
+): Promise<AuthUser | null> {
+  const refreshToken = await getRefreshTokenFromRequest(req);
+  if (!refreshToken) return null;
 
   try {
-    const payload = jwt.verify(token, jwtSecret(), {
+    const payload = jwt.verify(refreshToken, jwtSecret(), {
       algorithms: [JWT_ALGORITHM],
     }) as jwt.JwtPayload;
-    if (payload.type !== "access") throw new AuthError("Invalid token type", 401);
-
-    const db = await getDb();
-    const user = await db
-      .collection("users")
-      .findOne({ _id: new ObjectId(payload.sub as string) });
-    if (!user) throw new AuthError("User not found", 401);
-    const access = checkUserAccess(user as Record<string, unknown>);
-    if (!access.active) {
-      throw new AuthError(access.message ?? "Account access denied", 403);
-    }
-    return sanitizeUser(user as Record<string, unknown>);
-  } catch (e) {
-    if (e instanceof AuthError) throw e;
-    if (e instanceof jwt.TokenExpiredError) {
-      throw new AuthError("Token expired", 401);
-    }
-    throw new AuthError("Invalid token", 401);
+    if (payload.type !== "refresh" || !payload.sub) return null;
+    return await loadUserById(String(payload.sub));
+  } catch {
+    return null;
   }
+}
+
+export async function refreshAccessToken(
+  req: NextRequest
+): Promise<{ accessToken: string; email: string } | null> {
+  const refreshToken = await getRefreshTokenFromRequest(req);
+  if (!refreshToken) return null;
+
+  try {
+    const payload = jwt.verify(refreshToken, jwtSecret(), {
+      algorithms: [JWT_ALGORITHM],
+    }) as jwt.JwtPayload;
+    if (payload.type !== "refresh" || !payload.sub) return null;
+
+    const user = await loadUserById(String(payload.sub));
+    return {
+      accessToken: createAccessToken(user.id, user.email),
+      email: user.email,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function getCurrentUser(req: NextRequest): Promise<AuthUser> {
+  const token = await getTokenFromRequest(req);
+
+  if (token) {
+    try {
+      const payload = jwt.verify(token, jwtSecret(), {
+        algorithms: [JWT_ALGORITHM],
+      }) as jwt.JwtPayload;
+      if (payload.type !== "access") throw new AuthError("Invalid token type", 401);
+      return await loadUserById(String(payload.sub));
+    } catch (e) {
+      if (e instanceof AuthError) throw e;
+      if (!(e instanceof jwt.TokenExpiredError)) {
+        throw new AuthError("Invalid token", 401);
+      }
+    }
+  }
+
+  const fromRefresh = await userFromRefreshToken(req);
+  if (fromRefresh) return fromRefresh;
+
+  throw new AuthError("Not authenticated", 401);
 }
 
 export async function getAdminUser(req: NextRequest): Promise<AuthUser> {

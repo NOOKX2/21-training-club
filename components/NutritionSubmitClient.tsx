@@ -12,6 +12,8 @@ import { NutritionHeader } from "@/components/NutritionHeader";
 import { useMuscleReward } from "@/components/MuscleStreakContext";
 import { api } from "@/lib/api-client";
 import { clientCard, clientField } from "@/lib/client-ui";
+import type { MealSubmission } from "@/lib/data";
+import { getEffectiveMealMacros } from "@/lib/nutrition-utils";
 import { readImageDataUrl } from "@/lib/file-upload";
 import { cn } from "@/lib/utils";
 
@@ -22,15 +24,28 @@ const MEAL_OPTION_KEYS = [
   { value: 4, labelKey: "nutrition.meal4" },
 ] as const;
 
-export function NutritionSubmitClient({ userId }: { userId: string }) {
+export function NutritionSubmitClient({
+  userId,
+  meal,
+}: {
+  userId: string;
+  meal?: MealSubmission;
+}) {
+  const isEdit = Boolean(meal);
+  const initialMacros = meal ? getEffectiveMealMacros(meal) : { protein: 0, carbs: 0, fat: 0 };
   const router = useRouter();
   const { t } = useLanguage();
   const { celebrateMuscleTask } = useMuscleReward();
-  const [mealNumber, setMealNumber] = useState(1);
-  const [customName, setCustomName] = useState("");
-  const [weight, setWeight] = useState("");
-  const [description, setDescription] = useState("");
-  const [photo, setPhoto] = useState("");
+  const [mealNumber, setMealNumber] = useState(meal?.meal_number ?? 1);
+  const [customName, setCustomName] = useState(meal?.custom_name ?? "");
+  const [weight, setWeight] = useState(meal?.weight ?? "");
+  const [description, setDescription] = useState(meal?.description ?? "");
+  const [photo, setPhoto] = useState(meal?.photo_base64 ?? "");
+  const [protein, setProtein] = useState(
+    initialMacros.protein ? String(initialMacros.protein) : ""
+  );
+  const [carbs, setCarbs] = useState(initialMacros.carbs ? String(initialMacros.carbs) : "");
+  const [fat, setFat] = useState(initialMacros.fat ? String(initialMacros.fat) : "");
   const [photoName, setPhotoName] = useState("");
   const [photoLoading, setPhotoLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -61,19 +76,34 @@ export function NutritionSubmitClient({ userId }: { userId: string }) {
     setError("");
     setSubmitting(true);
     try {
-      await api("nutrition/meals-v2", {
-        method: "POST",
-        body: JSON.stringify({
-          user_id: userId,
-          meal_number: mealNumber,
-          meal_type: customName ? "custom" : "main",
-          custom_name: customName,
-          photo_base64: photo,
-          description,
-          weight,
-        }),
-      });
-      celebrateMuscleTask("meal");
+      const payload = {
+        meal_number: mealNumber,
+        meal_type: customName ? "custom" : "main",
+        custom_name: customName,
+        photo_base64: photo,
+        description,
+        weight,
+      };
+      if (isEdit && meal) {
+        await api(`nutrition/meals-v2/${meal.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            ...payload,
+            protein: protein === "" ? 0 : Number(protein),
+            carbs: carbs === "" ? 0 : Number(carbs),
+            fat: fat === "" ? 0 : Number(fat),
+          }),
+        });
+      } else {
+        await api("nutrition/meals-v2", {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: userId,
+            ...payload,
+          }),
+        });
+        celebrateMuscleTask("meal");
+      }
       router.push("/nutrition");
       router.refresh();
     } catch (err) {
@@ -90,7 +120,7 @@ export function NutritionSubmitClient({ userId }: { userId: string }) {
       <form onSubmit={submitMeal} className={cn(clientCard, "mx-auto mt-10 max-w-2xl p-8")}>
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-xl font-bold uppercase tracking-wide text-white">
-            {t("nutrition.submitTitle")}
+            {isEdit ? t("nutrition.editNutritionTitle") : t("nutrition.submitTitle")}
           </h2>
           <Link
             href="/nutrition"
@@ -148,6 +178,49 @@ export function NutritionSubmitClient({ userId }: { userId: string }) {
             />
           </div>
 
+          {isEdit ? (
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/45">
+                {t("nutrition.macrosSection")}
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <FieldLabel>{t("nutrition.protein")} (g)</FieldLabel>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    value={protein}
+                    onChange={(e) => setProtein(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <FieldLabel>{t("nutrition.carb")} (g)</FieldLabel>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    value={carbs}
+                    onChange={(e) => setCarbs(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <FieldLabel>{t("nutrition.fat")} (g)</FieldLabel>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    value={fat}
+                    onChange={(e) => setFat(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div>
             <FieldLabel>{t("nutrition.mealPhoto")}</FieldLabel>
             <FilePicker
@@ -183,7 +256,13 @@ export function NutritionSubmitClient({ userId }: { userId: string }) {
             className="h-14 w-full text-sm"
             disabled={submitting || photoLoading || !photo}
           >
-            {submitting ? t("nutrition.submitting") : t("nutrition.submitToCoach")}
+            {submitting
+              ? isEdit
+                ? t("nutrition.saving")
+                : t("nutrition.submitting")
+              : isEdit
+                ? t("nutrition.saveMeal")
+                : t("nutrition.submitToCoach")}
           </Button>
 
           <p className="text-center text-xs text-zinc-500">

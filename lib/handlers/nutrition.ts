@@ -6,6 +6,94 @@ import { getDb } from "../db";
 import { getCurrentUser, getAdminUser } from "../auth";
 import { json, error, parseBody, handleAuthError } from "../api-helpers";
 import { createAdminNotification } from "../admin-notifications";
+import { isBrowserDisplayableImageDataUrl } from "../image-utils";
+import { analyzeMealWithDify, analyzePromptWithDify, isDifyConfigured } from "../dify";
+
+async function getEditableMeal(
+  db: Awaited<ReturnType<typeof getDb>>,
+  mealId: string,
+  user: { id: string; role: string }
+) {
+  const existing = await db.collection("meal_submissions_v2").findOne({ id: mealId });
+  if (!existing) return { kind: "not_found" as const };
+  if (String(existing.user_id) !== user.id && user.role !== "admin") {
+    return { kind: "forbidden" as const };
+  }
+  if (existing.coach_reviewed) {
+    return { kind: "reviewed" as const };
+  }
+  return { kind: "ok" as const, existing };
+}
+
+async function analyzeAndStoreMealMacros(
+  db: Awaited<ReturnType<typeof getDb>>,
+  mealId: string,
+  meal: Record<string, unknown>,
+  userId: string,
+  customPrompt?: string
+): Promise<void> {
+  if (!isDifyConfigured()) return;
+
+  try {
+    const analysis = customPrompt?.trim()
+      ? await analyzePromptWithDify(customPrompt.trim(), userId)
+      : await analyzeMealWithDify(
+          {
+            meal_number:
+              typeof meal.meal_number === "number" ? meal.meal_number : undefined,
+            custom_name:
+              typeof meal.custom_name === "string" ? meal.custom_name : undefined,
+            description:
+              typeof meal.description === "string" ? meal.description : undefined,
+            weight: typeof meal.weight === "string" ? meal.weight : undefined,
+            meal_type:
+              typeof meal.meal_type === "string" ? meal.meal_type : undefined,
+          },
+          userId
+        );
+
+    if (!analysis) {
+      await db.collection("meal_submissions_v2").updateOne(
+        { id: mealId },
+        {
+          $set: {
+            ai_analysis_error: "Could not parse macro analysis from Dify response",
+            ai_analyzed_at: new Date().toISOString(),
+            ai_source: "dify",
+          },
+        }
+      );
+      return;
+    }
+
+    await db.collection("meal_submissions_v2").updateOne(
+      { id: mealId },
+      {
+        $set: {
+          ai_protein: analysis.protein,
+          ai_carbs: analysis.carbs,
+          ai_fat: analysis.fat,
+          ai_calories: analysis.calories ?? null,
+          ai_analyzed_at: new Date().toISOString(),
+          ai_analysis_error: null,
+          ai_source: "dify",
+        },
+      }
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Dify analysis failed";
+    await db.collection("meal_submissions_v2").updateOne(
+      { id: mealId },
+      {
+        $set: {
+          ai_analysis_error: message,
+          ai_analyzed_at: new Date().toISOString(),
+          ai_source: "dify",
+        },
+      }
+    );
+  }
+}
 
 export async function handleNutrition(
   req: NextRequest,
@@ -138,6 +226,14 @@ export async function handleNutrition(
     if (sub === "meals-v2" && req.method === "POST") {
       await getCurrentUser(req);
       const meal = await parseBody<Record<string, unknown>>(req);
+      const photo =
+        typeof meal.photo_base64 === "string" ? meal.photo_base64.trim() : "";
+      if (photo && !isBrowserDisplayableImageDataUrl(photo)) {
+        return error(
+          "This photo format (HEIC) cannot be displayed in the browser. Please upload again.",
+          400
+        );
+      }
       const userDoc = await db.collection("users").findOne({
         _id: new ObjectId(String(meal.user_id)),
       });
@@ -160,7 +256,259 @@ export async function handleNutrition(
         message: mealLabel || "Meal submitted",
         date: doc.submitted_at.slice(0, 10),
       });
-      return json(doc);
+      await analyzeAndStoreMealMacros(
+        db,
+        doc.id,
+        meal,
+        String(meal.user_id)
+      );
+      const analyzed = await db.collection("meal_submissions_v2").findOne(
+        { id: doc.id },
+        { projection: { _id: 0 } }
+      );
+      return json(analyzed ?? doc);
+    }
+
+    if (sub === "analyze-meals" && req.method === "POST") {
+      const user = await getCurrentUser(req);
+      const body = await parseBody<{ user_id: string; date?: string }>(req);
+      if (user.id !== body.user_id && user.role !== "admin") {
+        return error("Access denied", 403);
+      }
+      if (!isDifyConfigured()) {
+        return error("Dify is not configured", 503);
+      }
+
+      const query: Record<string, unknown> = { user_id: body.user_id };
+      if (body.date) {
+        const start = new Date(body.date);
+        start.setUTCHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setUTCDate(end.getUTCDate() + 1);
+        query.submitted_at = {
+          $gte: start.toISOString(),
+          $lt: end.toISOString(),
+        };
+      }
+
+      const meals = await db
+        .collection("meal_submissions_v2")
+        .find({
+          ...query,
+          coach_reviewed: { $ne: true },
+          ai_analyzed_at: { $exists: false },
+        })
+        .project({ _id: 0 })
+        .toArray();
+
+      for (const meal of meals) {
+        await analyzeAndStoreMealMacros(
+          db,
+          String(meal.id),
+          meal as Record<string, unknown>,
+          body.user_id
+        );
+      }
+
+      const updated = await db
+        .collection("meal_submissions_v2")
+        .find(query)
+        .project({ _id: 0 })
+        .sort({ submitted_at: -1 })
+        .toArray();
+      return json(updated);
+    }
+
+    if (
+      sub === "meals-v2" &&
+      segments[2] &&
+      segments[3] === "macros" &&
+      req.method === "PUT"
+    ) {
+      const user = await getCurrentUser(req);
+      const mealId = segments[2];
+      const access = await getEditableMeal(db, mealId, user);
+      if (access.kind === "not_found") return error("Meal not found", 404);
+      if (access.kind === "forbidden") return error("Access denied", 403);
+      if (access.kind === "reviewed") {
+        return error("Cannot edit a meal that has been reviewed by your coach", 400);
+      }
+
+      const body = await parseBody<{
+        protein?: number;
+        carbs?: number;
+        fat?: number;
+      }>(req);
+
+      const macros = {
+        protein: body.protein != null ? Number(body.protein) : 0,
+        carbs: body.carbs != null ? Number(body.carbs) : 0,
+        fat: body.fat != null ? Number(body.fat) : 0,
+      };
+      for (const [key, value] of Object.entries(macros)) {
+        if (Number.isNaN(value) || value < 0) {
+          return error(`${key} must be a non-negative number`, 400);
+        }
+      }
+
+      await db.collection("meal_submissions_v2").updateOne(
+        { id: mealId },
+        {
+          $set: {
+            ai_protein: macros.protein,
+            ai_carbs: macros.carbs,
+            ai_fat: macros.fat,
+            ai_calories: macros.protein * 4 + macros.carbs * 4 + macros.fat * 9,
+            ai_analyzed_at: new Date().toISOString(),
+            ai_analysis_error: null,
+            ai_source: "manual",
+          },
+        }
+      );
+
+      const updated = await db.collection("meal_submissions_v2").findOne(
+        { id: mealId },
+        { projection: { _id: 0 } }
+      );
+      return json(updated);
+    }
+
+    if (
+      sub === "meals-v2" &&
+      segments[2] &&
+      segments[3] === "reprompt" &&
+      req.method === "POST"
+    ) {
+      const user = await getCurrentUser(req);
+      const mealId = segments[2];
+      const access = await getEditableMeal(db, mealId, user);
+      if (access.kind === "not_found") return error("Meal not found", 404);
+      if (access.kind === "forbidden") return error("Access denied", 403);
+      if (access.kind === "reviewed") {
+        return error("Cannot edit a meal that has been reviewed by your coach", 400);
+      }
+      if (!isDifyConfigured()) {
+        return error("Dify is not configured", 503);
+      }
+
+      const body = await parseBody<{ prompt?: string }>(req);
+      const customPrompt =
+        typeof body.prompt === "string" ? body.prompt.trim() : "";
+
+      await db.collection("meal_submissions_v2").updateOne(
+        { id: mealId },
+        {
+          $unset: {
+            ai_protein: "",
+            ai_carbs: "",
+            ai_fat: "",
+            ai_calories: "",
+            ai_analyzed_at: "",
+            ai_analysis_error: "",
+            ai_source: "",
+          },
+        }
+      );
+
+      const mealDoc = await db.collection("meal_submissions_v2").findOne({ id: mealId });
+      if (!mealDoc) return error("Meal not found", 404);
+
+      await analyzeAndStoreMealMacros(
+        db,
+        mealId,
+        mealDoc as Record<string, unknown>,
+        String(access.existing.user_id),
+        customPrompt || undefined
+      );
+
+      const analyzed = await db.collection("meal_submissions_v2").findOne(
+        { id: mealId },
+        { projection: { _id: 0 } }
+      );
+      return json(analyzed);
+    }
+
+    if (sub === "meals-v2" && segments[2] && !segments[3] && req.method === "PUT") {
+      const user = await getCurrentUser(req);
+      const mealId = segments[2];
+      const existing = await db.collection("meal_submissions_v2").findOne({ id: mealId });
+      if (!existing) return error("Meal not found", 404);
+      if (String(existing.user_id) !== user.id && user.role !== "admin") {
+        return error("Access denied", 403);
+      }
+      if (existing.coach_reviewed) {
+        return error("Cannot edit a meal that has been reviewed by your coach", 400);
+      }
+
+      const body = await parseBody<{
+        meal_number?: number;
+        custom_name?: string;
+        description?: string;
+        weight?: string;
+        photo_base64?: string;
+        protein?: number;
+        carbs?: number;
+        fat?: number;
+      }>(req);
+
+      const photo =
+        typeof body.photo_base64 === "string" ? body.photo_base64.trim() : "";
+      if (photo && !isBrowserDisplayableImageDataUrl(photo)) {
+        return error(
+          "This photo format (HEIC) cannot be displayed in the browser. Please upload again.",
+          400
+        );
+      }
+
+      const customName =
+        typeof body.custom_name === "string" ? body.custom_name.trim() : "";
+      const mealNumber = Number(body.meal_number ?? existing.meal_number ?? 1);
+      const updates: Record<string, unknown> = {
+        meal_number: mealNumber,
+        meal_type: customName ? "custom" : "main",
+        custom_name: customName,
+        description:
+          typeof body.description === "string" ? body.description.trim() : "",
+        weight: typeof body.weight === "string" ? body.weight.trim() : "",
+        updated_at: new Date().toISOString(),
+      };
+      if (photo) {
+        updates.photo_base64 = photo;
+      }
+
+      const hasMacros =
+        body.protein != null || body.carbs != null || body.fat != null;
+      if (hasMacros) {
+        const macros = {
+          protein: body.protein != null ? Number(body.protein) : 0,
+          carbs: body.carbs != null ? Number(body.carbs) : 0,
+          fat: body.fat != null ? Number(body.fat) : 0,
+        };
+        for (const [key, value] of Object.entries(macros)) {
+          if (Number.isNaN(value) || value < 0) {
+            return error(`${key} must be a non-negative number`, 400);
+          }
+        }
+        updates.ai_protein = macros.protein;
+        updates.ai_carbs = macros.carbs;
+        updates.ai_fat = macros.fat;
+        updates.ai_calories =
+          macros.protein * 4 + macros.carbs * 4 + macros.fat * 9;
+        updates.ai_analyzed_at = new Date().toISOString();
+        updates.ai_analysis_error = null;
+        updates.ai_source = "manual";
+      }
+
+      await db.collection("meal_submissions_v2").updateOne(
+        { id: mealId },
+        { $set: updates }
+      );
+
+      const updatedDoc = await db.collection("meal_submissions_v2").findOne(
+        { id: mealId },
+        { projection: { _id: 0 } }
+      );
+      return json(updatedDoc);
     }
 
     if (sub === "meals-v2" && segments[2] && req.method === "GET") {

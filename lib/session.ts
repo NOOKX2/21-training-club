@@ -8,12 +8,15 @@ import { checkUserAccess, normalizeDateOnly } from "./access";
 import { profilePhotoStreamPath } from "./profile-photo-storage";
 import { ADMIN_HOME, USER_HOME, isAdminRole, normalizeRole } from "./routes";
 
-async function userFromToken(token: string): Promise<User | null> {
+async function userFromAccessOrRefreshToken(
+  token: string,
+  expectedType: "access" | "refresh"
+): Promise<User | null> {
   const secret = process.env.JWT_SECRET;
   if (!secret) return null;
   try {
     const payload = jwt.verify(token, secret) as jwt.JwtPayload;
-    if (payload.type !== "access" || !payload.sub) return null;
+    if (payload.type !== expectedType || !payload.sub) return null;
     const db = await getDb();
     const doc = await db.collection("users").findOne({
       _id: new ObjectId(payload.sub as string),
@@ -40,9 +43,16 @@ async function userFromToken(token: string): Promise<User | null> {
 
 export async function getSessionUser(): Promise<User | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
-  if (!token) return null;
-  return userFromToken(token);
+  const access = cookieStore.get("access_token")?.value;
+  if (access) {
+    const user = await userFromAccessOrRefreshToken(access, "access");
+    if (user) return user;
+  }
+  const refresh = cookieStore.get("refresh_token")?.value;
+  if (refresh) {
+    return userFromAccessOrRefreshToken(refresh, "refresh");
+  }
+  return null;
 }
 
 export async function requireUser(): Promise<User> {

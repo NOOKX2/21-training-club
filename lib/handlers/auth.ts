@@ -5,7 +5,8 @@ import {
   hashPassword,
   verifyPassword,
   getCurrentUser,
-  getAdminUser,
+  refreshAccessToken,
+  AUTH_COOKIE_OPTIONS,
 } from "../auth";
 import { checkUserAccess } from "../access";
 import { isAdminRole } from "../routes";
@@ -122,6 +123,17 @@ export async function handleAuth(
 
     if (action === "logout" && req.method === "POST") {
       return clearAuthCookies();
+    }
+
+    if (action === "refresh" && req.method === "POST") {
+      const refreshed = await refreshAccessToken(req);
+      if (!refreshed) return error("Not authenticated", 401);
+      const res = json({ message: "Token refreshed" });
+      res.cookies.set("access_token", refreshed.accessToken, {
+        ...AUTH_COOKIE_OPTIONS,
+        maxAge: 900,
+      });
+      return res;
     }
 
     if (action === "me" && req.method === "GET") {

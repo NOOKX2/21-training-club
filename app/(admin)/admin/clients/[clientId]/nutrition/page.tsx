@@ -38,6 +38,7 @@ export default async function AdminClientNutritionPage({
   return (
     <NutritionClient
       key={selectedDate}
+      userId={clientId}
       meals={meals}
       scoreTrend={scoreTrend}
       limits={limits}

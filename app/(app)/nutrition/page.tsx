@@ -31,6 +31,7 @@ export default async function NutritionPage({
   return (
     <NutritionClient
       key={selectedDate}
+      userId={user.id}
       meals={meals}
       scoreTrend={scoreTrend}
       limits={limits}

@@ -46,6 +46,13 @@ export type MealSubmission = {
   protein?: number;
   carbs?: number;
   fat?: number;
+  ai_protein?: number;
+  ai_carbs?: number;
+  ai_fat?: number;
+  ai_calories?: number;
+  ai_analyzed_at?: string;
+  ai_analysis_error?: string;
+  ai_source?: "manual" | "dify";
   user_name?: string;
 };
 
@@ -273,23 +280,8 @@ export async function getRegistrationEnabled(): Promise<boolean> {
   return count === 0;
 }
 
-export async function getMealsForUser(
-  userId: string,
-  date?: string
-): Promise<MealSubmission[]> {
-  const db = await getDb();
-  const query: Record<string, unknown> = { user_id: userId };
-  if (date) {
-    const { start, end } = localDayRange(date);
-    query.submitted_at = { $gte: start, $lt: end };
-  }
-  const meals = await db
-    .collection("meal_submissions_v2")
-    .find(query)
-    .project({ _id: 0 })
-    .sort({ submitted_at: -1 })
-    .toArray();
-  return meals.map((m) => ({
+function mapMealSubmission(m: Record<string, unknown>): MealSubmission {
+  return {
     id: String(m.id),
     meal_number: Number(m.meal_number ?? 1),
     custom_name: m.custom_name ? String(m.custom_name) : undefined,
@@ -307,8 +299,61 @@ export async function getMealsForUser(
       m.protein != null && m.protein !== "" ? Number(m.protein) : undefined,
     carbs: m.carbs != null && m.carbs !== "" ? Number(m.carbs) : undefined,
     fat: m.fat != null && m.fat !== "" ? Number(m.fat) : undefined,
+    ai_protein:
+      m.ai_protein != null && m.ai_protein !== ""
+        ? Number(m.ai_protein)
+        : undefined,
+    ai_carbs:
+      m.ai_carbs != null && m.ai_carbs !== ""
+        ? Number(m.ai_carbs)
+        : undefined,
+    ai_fat:
+      m.ai_fat != null && m.ai_fat !== "" ? Number(m.ai_fat) : undefined,
+    ai_calories:
+      m.ai_calories != null && m.ai_calories !== ""
+        ? Number(m.ai_calories)
+        : undefined,
+    ai_analyzed_at: m.ai_analyzed_at ? String(m.ai_analyzed_at) : undefined,
+    ai_analysis_error: m.ai_analysis_error
+      ? String(m.ai_analysis_error)
+      : undefined,
+    ai_source:
+      m.ai_source === "manual" || m.ai_source === "dify"
+        ? m.ai_source
+        : undefined,
     user_name: m.user_name ? String(m.user_name) : undefined,
-  }));
+  };
+}
+
+export async function getMealsForUser(
+  userId: string,
+  date?: string
+): Promise<MealSubmission[]> {
+  const db = await getDb();
+  const query: Record<string, unknown> = { user_id: userId };
+  if (date) {
+    const { start, end } = localDayRange(date);
+    query.submitted_at = { $gte: start, $lt: end };
+  }
+  const meals = await db
+    .collection("meal_submissions_v2")
+    .find(query)
+    .project({ _id: 0 })
+    .sort({ submitted_at: -1 })
+    .toArray();
+  return meals.map((m) => mapMealSubmission(m as Record<string, unknown>));
+}
+
+export async function getMealById(
+  mealId: string,
+  userId: string
+): Promise<MealSubmission | null> {
+  const db = await getDb();
+  const meal = await db
+    .collection("meal_submissions_v2")
+    .findOne({ id: mealId, user_id: userId }, { projection: { _id: 0 } });
+  if (!meal) return null;
+  return mapMealSubmission(meal as Record<string, unknown>);
 }
 
 export async function getNutritionScoreTrend(
