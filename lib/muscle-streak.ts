@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { dateKeyFromIso, localDateKey, localDayRange } from "./date-utils";
 import { getDb } from "./db";
 import type { DailyMuscleStatus } from "./muscle-streak-types";
@@ -64,7 +65,7 @@ async function getRecentDateSets(userId: string) {
   return { workoutDates, mealDates };
 }
 
-export async function getDailyMuscleStatus(userId: string): Promise<DailyMuscleStatus> {
+export const getDailyMuscleStatus = cache(async (userId: string): Promise<DailyMuscleStatus> => {
   const today = localDateKey(new Date());
   const { workoutDates, mealDates } = await getRecentDateSets(userId);
 
@@ -88,6 +89,6 @@ export async function getDailyMuscleStatus(userId: string): Promise<DailyMuscleS
     all_complete: completed_count === MUSCLE_TASKS.length,
     streak_days: computeStreak(fullDayKeys),
   };
-}
+});
 
 export type { DailyMuscleStatus, MuscleTask } from "./muscle-streak-types";

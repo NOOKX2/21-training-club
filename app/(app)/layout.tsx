@@ -1,6 +1,6 @@
 import { DM_Sans, Inter } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
-import { AppUserProvider } from "@/components/AppUserProvider";
+import { getDailyMuscleStatus } from "@/lib/muscle-streak";
 import { requireAppUser } from "@/lib/session";
 
 const inter = Inter({
@@ -19,11 +19,12 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireAppUser();
+  const muscleStatus = await getDailyMuscleStatus(user.id);
   return (
     <div className={`${inter.variable} ${dmSans.variable}`}>
-      <AppUserProvider user={user}>
-        <AppShell user={user}>{children}</AppShell>
-      </AppUserProvider>
+      <AppShell user={user} muscleStatus={muscleStatus}>
+        {children}
+      </AppShell>
     </div>
   );
 }

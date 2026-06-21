@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["mongodb", "mongoose", "bcryptjs", "jsonwebtoken"],
   experimental: {
     staleTimes: {
-      dynamic: 30,
-      static: 180,
+      dynamic: 60,
+      static: 300,
     },
   },
 };
