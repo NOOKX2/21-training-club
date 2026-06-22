@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { preload } from "swr";
 import { useAppUser } from "@/components/AppUserProvider";
 import { api } from "@/lib/api-client";
-import { localDateKey } from "@/lib/date-utils";
+import { localDateKey, shiftDateKey } from "@/lib/date-utils";
 import { MAIN_TAB_ROUTES } from "@/lib/main-tabs";
 import {
   getProgramWeekDay,
@@ -27,8 +27,14 @@ export function PrefetchAppPages() {
     }
     router.prefetch("/profile");
 
-    void preload(`app-pages/workouts?week=${week}&day=${day}`, fetcher);
+    for (let w = 1; w <= 4; w += 1) {
+      void preload(`app-pages/workouts?week=${w}`, fetcher);
+    }
     void preload(`app-pages/nutrition?date=${today}`, fetcher);
+    for (let offset = -7; offset <= 0; offset += 1) {
+      const date = shiftDateKey(today, offset);
+      void preload(`app-pages/nutrition?date=${date}`, fetcher);
+    }
     void preload("app-pages/progress", fetcher);
     void preload("app-pages/coach", fetcher);
   }, [router, user]);

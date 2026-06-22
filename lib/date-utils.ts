@@ -15,3 +15,9 @@ export function localDayRange(dateKey: string): { start: string; end: string } {
 export function dateKeyFromIso(iso: string): string {
   return localDateKey(new Date(iso));
 }
+
+export function shiftDateKey(dateKey: string, delta: number): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const next = new Date(y, m - 1, d + delta);
+  return localDateKey(next);
+}

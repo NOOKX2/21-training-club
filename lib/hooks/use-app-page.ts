@@ -12,6 +12,7 @@ import type {
   WeeklyReport,
   WeightEntry,
   WorkoutDay,
+  WorkoutDayPageSlice,
   WorkoutLog,
 } from "@/lib/data";
 
@@ -31,6 +32,13 @@ export type WorkoutsPageData = {
   logs: Record<string, WorkoutLog>;
   cardioLog: CardioLog;
   formChecks: FormCheckSubmission[];
+};
+
+export type WorkoutWeekPageData = {
+  userId: string;
+  week: number;
+  defaultDay: number;
+  byDay: Record<number, WorkoutDayPageSlice>;
 };
 
 export type NutritionPageData = {
@@ -58,6 +66,15 @@ export type CoachPageData = {
   programStartDate: string;
 };
 
+export function useWorkoutWeek(week: number) {
+  return useSWR<WorkoutWeekPageData>(
+    `app-pages/workouts?week=${week}`,
+    fetcher,
+    swrOptions
+  );
+}
+
+/** @deprecated use useWorkoutWeek — kept for compatibility */
 export function useWorkoutsPage(week: number, day: number) {
   return useSWR<WorkoutsPageData>(
     `app-pages/workouts?week=${week}&day=${day}`,

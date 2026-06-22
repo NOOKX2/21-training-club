@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { preload } from "swr";
 import { WorkoutClient } from "@/components/WorkoutClient";
 import { useAppUser } from "@/components/AppUserProvider";
-import { useWorkoutsPage } from "@/lib/hooks/use-app-page";
+import { useWorkoutWeek } from "@/lib/hooks/use-app-page";
+import { api } from "@/lib/api-client";
 import {
   getProgramWeekDay,
   resolveProgramStartDate,
 } from "@/lib/program-schedule";
 import { replaceAppUrl } from "@/lib/sync-url";
+
+const fetcher = <T,>(path: string) => api<T>(path);
 
 function parseWeekDay(
   rawWeek: string | null,
@@ -37,7 +41,7 @@ export function WorkoutsPageView() {
   );
   const [week, setWeek] = useState(initial.week);
   const [day, setDay] = useState(initial.day);
-  const { data } = useWorkoutsPage(week, day);
+  const { data } = useWorkoutWeek(week);
 
   useEffect(() => {
     const next = parseWeekDay(
@@ -49,24 +53,38 @@ export function WorkoutsPageView() {
     setDay(next.day);
   }, [searchParams, user]);
 
+  useEffect(() => {
+    for (let w = 1; w <= 4; w += 1) {
+      if (w === week) continue;
+      void preload(`app-pages/workouts?week=${w}`, fetcher);
+    }
+  }, [week]);
+
   const navigate = useCallback((nextWeek: number, nextDay: number) => {
     setWeek(nextWeek);
     setDay(nextDay);
     replaceAppUrl("/workouts", { week: nextWeek, day: nextDay });
-  }, []);
+    if (nextWeek !== week) {
+      void preload(`app-pages/workouts?week=${nextWeek}`, fetcher);
+    }
+  }, [week]);
 
-  if (!data || data.week !== week || data.day !== day) return null;
+  const slice = data?.byDay[day];
+  const emptyCardio = {
+    duration_minutes: "",
+    distance_km: "",
+    calories_burned: "",
+  };
 
   return (
     <WorkoutClient
-      key={`${week}-${day}`}
-      userId={data.userId}
+      userId={data?.userId ?? user.id}
       week={week}
       day={day}
-      days={data.days}
-      initialLogs={data.logs}
-      initialCardioLog={data.cardioLog}
-      initialFormChecks={data.formChecks}
+      days={slice?.days ?? []}
+      initialLogs={slice?.logs ?? {}}
+      initialCardioLog={slice?.cardioLog ?? emptyCardio}
+      initialFormChecks={slice?.formChecks ?? []}
       onNavigate={navigate}
     />
   );

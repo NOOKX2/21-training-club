@@ -641,6 +641,36 @@ export async function getWorkoutPageData(
   return { days, logs, cardioLog };
 }
 
+export type WorkoutDayPageSlice = {
+  days: WorkoutDay[];
+  logs: Record<string, WorkoutLog>;
+  cardioLog: CardioLog;
+  formChecks: FormCheckSubmission[];
+};
+
+export async function getWorkoutWeekPageData(
+  userId: string,
+  userEmail: string,
+  week: number
+): Promise<Record<number, WorkoutDayPageSlice>> {
+  const slices = await Promise.all(
+    Array.from({ length: 7 }, (_, index) => index + 1).map(async (day) => {
+      const [{ days, logs, cardioLog }, formChecks] = await Promise.all([
+        getWorkoutPageData(userId, userEmail, week, day),
+        getFormChecksForUserWeekDay(userId, week, day),
+      ]);
+      return { day, days, logs, cardioLog, formChecks };
+    })
+  );
+
+  return Object.fromEntries(
+    slices.map(({ day, days, logs, cardioLog, formChecks }) => [
+      day,
+      { days, logs, cardioLog, formChecks },
+    ])
+  );
+}
+
 export async function getWeightHistory(userId: string): Promise<WeightEntry[]> {
   const db = await getDb();
   const entries = await db

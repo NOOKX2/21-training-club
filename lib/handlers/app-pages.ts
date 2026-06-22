@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import {
   getCoaches,
-  getFormChecksForUserWeekDay,
   getMealsForUser,
   getMessages,
   getNutritionLimits,
@@ -10,7 +9,7 @@ import {
   getUserHeight,
   getWeeklyReports,
   getWeightHistory,
-  getWorkoutPageData,
+  getWorkoutWeekPageData,
 } from "../data";
 import { localDateKey } from "../date-utils";
 import { getCurrentUser } from "../auth";
@@ -45,30 +44,21 @@ export async function handleAppPages(
         4,
         Math.max(1, parseInt(params.get("week") ?? "0", 10) || 1)
       );
-      let day = Math.min(
-        7,
-        Math.max(1, parseInt(params.get("day") ?? "0", 10) || 1)
-      );
 
-      if (!params.has("week") && !params.has("day")) {
-        const programDay = getProgramWeekDay(resolveProgramStartDate(user));
-        week = programDay.week;
-        day = programDay.day;
+      if (!params.has("week")) {
+        week = getProgramWeekDay(resolveProgramStartDate(user)).week;
       }
 
-      const [{ days, logs, cardioLog }, formChecks] = await Promise.all([
-        getWorkoutPageData(user.id, user.email, week, day),
-        getFormChecksForUserWeekDay(user.id, week, day),
-      ]);
+      const byDay = await getWorkoutWeekPageData(user.id, user.email, week);
+      const defaultDay = params.has("day")
+        ? Math.min(7, Math.max(1, parseInt(params.get("day") ?? "1", 10) || 1))
+        : getProgramWeekDay(resolveProgramStartDate(user)).day;
 
       return json({
         userId: user.id,
         week,
-        day,
-        days,
-        logs,
-        cardioLog,
-        formChecks,
+        defaultDay,
+        byDay,
       });
     }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardCheck, ListPlus, Plus, Trash2, Zap } from "lucide-react";
 import { ClientSectionHeading } from "@/components/ClientSectionHeading";
@@ -128,6 +128,24 @@ export function WorkoutClient({
   const [savedIds, setSavedIds] = useState<Record<string, boolean>>({});
   const [cardioSaved, setCardioSaved] = useState(false);
   const [messages, setMessages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setLogs(initialLogs);
+    setCardioLog(initialCardioLog);
+    const map: Record<string, FormCheckSubmission> = {};
+    for (const fc of initialFormChecks) {
+      if (fc.exercise_id) map[fc.exercise_id] = fc;
+    }
+    setFormChecks(map);
+    const open: Record<string, boolean> = {};
+    for (const [exerciseId, log] of Object.entries(initialLogs)) {
+      if (log.sets?.length) open[exerciseId] = true;
+    }
+    setCustomSetsOpen(open);
+    setSavedIds({});
+    setCardioSaved(false);
+    setMessages({});
+  }, [week, day, initialLogs, initialCardioLog, initialFormChecks]);
 
   const dayData = days.find((d) => d.day === day);
 
