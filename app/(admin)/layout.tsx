@@ -1,4 +1,5 @@
 import { AdminShell } from "@/components/admin/AdminShell";
+import { buildAdminSwrFallback } from "@/lib/admin-swr-fallback";
 import { requireAdmin } from "@/lib/session";
 
 export default async function AdminLayout({
@@ -7,5 +8,6 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   await requireAdmin();
-  return <AdminShell>{children}</AdminShell>;
+  const swrFallback = await buildAdminSwrFallback();
+  return <AdminShell swrFallback={swrFallback}>{children}</AdminShell>;
 }

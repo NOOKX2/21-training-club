@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -18,9 +17,17 @@ import {
   Wand2,
   X,
 } from "lucide-react";
+import {
+  AdminTabContent,
+  AdminTabLink,
+  AdminTabNavProvider,
+  useAdminTabNav,
+} from "@/components/AdminTabNav";
+import { PrefetchAdminPages } from "@/components/PrefetchAdminPages";
 import { NotificationBell } from "@/components/NotificationBell";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import { SWRConfig } from "swr";
 
 const navItems = [
   { href: "/admin", label: "Dashboard Overview", icon: LayoutGrid, exact: true },
@@ -35,32 +42,39 @@ const navItems = [
   { href: "/admin/form-checks", label: "Video Form-Check Queue", icon: CheckCircle },
 ];
 
-function isNavActive(pathname: string, href: string, exact?: boolean) {
-  if (exact) return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
+function isNavActive(
+  activePath: string,
+  href: string,
+  exact?: boolean
+) {
+  const base = href.split("?")[0];
+  if (exact) return activePath === base;
+  return activePath === base || activePath.startsWith(`${base}/`);
 }
 
-function currentPageLabel(pathname: string) {
-  const match = navItems.find(({ href, exact }) => isNavActive(pathname, href, exact));
+function currentPageLabel(activePath: string) {
+  const match = navItems.find(({ href, exact }) =>
+    isNavActive(activePath, href, exact)
+  );
   return match?.label ?? "Admin Portal";
 }
 
 function AdminSidebarNav({
-  pathname,
   onNavigate,
   onLogout,
 }: {
-  pathname: string;
   onNavigate?: () => void;
   onLogout: () => void;
 }) {
+  const { activePath } = useAdminTabNav();
+
   return (
     <>
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
         {navItems.map(({ href, label, icon: Icon, exact }) => {
-          const active = isNavActive(pathname, href, exact);
+          const active = isNavActive(activePath, href, exact);
           return (
-            <Link
+            <AdminTabLink
               key={href}
               href={href}
               onClick={onNavigate}
@@ -73,7 +87,7 @@ function AdminSidebarNav({
             >
               <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
               {label}
-            </Link>
+            </AdminTabLink>
           );
         })}
       </nav>
@@ -92,11 +106,16 @@ function AdminSidebarNav({
   );
 }
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+export function AdminShell({
+  children,
+  swrFallback = {},
+}: {
+  children: React.ReactNode;
+  swrFallback?: Record<string, unknown>;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
-  const pageTitle = currentPageLabel(pathname);
 
   useEffect(() => {
     setNavOpen(false);
@@ -127,6 +146,47 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    <SWRConfig
+      value={{
+        fetcher: (key: string) => api(key),
+        fallback: swrFallback,
+        keepPreviousData: true,
+        revalidateOnFocus: true,
+        dedupingInterval: 3_000,
+      }}
+    >
+      <AdminTabNavProvider>
+        <PrefetchAdminPages />
+        <AdminShellFrame
+          navOpen={navOpen}
+          setNavOpen={setNavOpen}
+          closeNav={closeNav}
+          logout={logout}
+        >
+          <AdminTabContent>{children}</AdminTabContent>
+        </AdminShellFrame>
+      </AdminTabNavProvider>
+    </SWRConfig>
+  );
+}
+
+function AdminShellFrame({
+  children,
+  navOpen,
+  setNavOpen,
+  closeNav,
+  logout,
+}: {
+  children: React.ReactNode;
+  navOpen: boolean;
+  setNavOpen: (open: boolean) => void;
+  closeNav: () => void;
+  logout: () => void;
+}) {
+  const { activePath } = useAdminTabNav();
+  const pageTitle = currentPageLabel(activePath);
+
+  return (
     <div className="flex min-h-screen bg-[#0a0e14] text-white">
       <aside className="hidden w-56 shrink-0 flex-col border-r border-zinc-800 bg-[#0a0e14] lg:flex">
         <div className="border-b border-zinc-800 px-5 py-6">
@@ -135,7 +195,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </p>
           <p className="mt-0.5 text-xs text-zinc-500">Admin</p>
         </div>
-        <AdminSidebarNav pathname={pathname} onLogout={logout} />
+        <AdminSidebarNav onLogout={logout} />
       </aside>
 
       {navOpen && (
@@ -170,7 +230,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <AdminSidebarNav pathname={pathname} onNavigate={closeNav} onLogout={logout} />
+        <AdminSidebarNav onNavigate={closeNav} onLogout={logout} />
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
