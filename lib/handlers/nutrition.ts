@@ -511,6 +511,20 @@ export async function handleNutrition(
       return json(updatedDoc);
     }
 
+    if (sub === "meals-v2" && segments[2] && !segments[3] && req.method === "DELETE") {
+      const user = await getCurrentUser(req);
+      const mealId = segments[2];
+      const access = await getEditableMeal(db, mealId, user);
+      if (access.kind === "not_found") return error("Meal not found", 404);
+      if (access.kind === "forbidden") return error("Access denied", 403);
+      if (access.kind === "reviewed") {
+        return error("Cannot delete a meal that has been reviewed by your coach", 400);
+      }
+
+      await db.collection("meal_submissions_v2").deleteOne({ id: mealId });
+      return json({ ok: true });
+    }
+
     if (sub === "meals-v2" && segments[2] && req.method === "GET") {
       const user = await getCurrentUser(req);
       const userId = segments[2];

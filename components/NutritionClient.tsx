@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Pencil, RefreshCw } from "lucide-react";
+import { Pencil, RefreshCw, Trash2 } from "lucide-react";
+import { useSWRConfig } from "swr";
 import { useLanguage } from "@/components/LanguageProvider";
 import { NutritionHeader } from "@/components/NutritionHeader";
 import { NutritionScoreChart } from "@/components/NutritionScoreChart";
@@ -45,10 +46,35 @@ export function NutritionClient({
 }) {
   const [meals, setMeals] = useState(initialMeals);
   const [analyzing, setAnalyzing] = useState(false);
+  const [deletingMealId, setDeletingMealId] = useState<string | null>(null);
+  const { mutate } = useSWRConfig();
+  const { t } = useLanguage();
 
   useEffect(() => {
     setMeals(initialMeals);
   }, [initialMeals]);
+
+  async function deleteMeal(mealId: string) {
+    if (deletingMealId || !window.confirm(t("nutrition.confirmDeleteMeal"))) return;
+
+    setDeletingMealId(mealId);
+    try {
+      await api(`nutrition/meals-v2/${mealId}`, { method: "DELETE" });
+      setMeals((current) => current.filter((meal) => meal.id !== mealId));
+      void mutate(
+        `app-pages/nutrition?date=${selectedDate}`,
+        (current?: { meals: MealSubmission[] }) =>
+          current
+            ? { ...current, meals: current.meals.filter((meal) => meal.id !== mealId) }
+            : current,
+        { revalidate: false }
+      );
+    } catch {
+      // Keep current list if delete fails.
+    } finally {
+      setDeletingMealId(null);
+    }
+  }
 
   useEffect(() => {
     const needsAnalysis = initialMeals.some(
@@ -99,7 +125,6 @@ export function NutritionClient({
     (limits.carbs ?? 0) > 0 ||
     (limits.fat ?? 0) > 0;
   const showDailyTotals = meals.length > 0 || hasLimits;
-  const { t } = useLanguage();
 
   return (
     <div className="space-y-6">
@@ -180,6 +205,10 @@ export function NutritionClient({
                   canEdit={showAddButton && !m.coach_reviewed}
                   editNutritionLabel={t("nutrition.editNutrition")}
                   promptAgainLabel={t("nutrition.promptAgain")}
+                  deleteMealLabel={t("nutrition.deleteMeal")}
+                  deletingMealLabel={t("nutrition.deletingMeal")}
+                  deleting={deletingMealId === m.id}
+                  onDelete={() => void deleteMeal(m.id)}
                   manualEstimateLabel={t("nutrition.manualEstimate")}
                   unsupportedPhotoLabel={t("nutrition.unsupportedPhotoFormat")}
                   analyzingLabel={t("nutrition.analyzingMeal")}
@@ -197,6 +226,10 @@ export function NutritionClient({
                     canEdit={showAddButton && !m.coach_reviewed}
                     editNutritionLabel={t("nutrition.editNutrition")}
                     promptAgainLabel={t("nutrition.promptAgain")}
+                    deleteMealLabel={t("nutrition.deleteMeal")}
+                    deletingMealLabel={t("nutrition.deletingMeal")}
+                    deleting={deletingMealId === m.id}
+                    onDelete={() => void deleteMeal(m.id)}
                     manualEstimateLabel={t("nutrition.manualEstimate")}
                     unsupportedPhotoLabel={t("nutrition.unsupportedPhotoFormat")}
                     analyzingLabel={t("nutrition.analyzingMeal")}
@@ -252,10 +285,18 @@ function MealActionLinks({
   mealId,
   editNutritionLabel,
   promptAgainLabel,
+  deleteMealLabel,
+  deletingMealLabel,
+  deleting,
+  onDelete,
 }: {
   mealId: string;
   editNutritionLabel: string;
   promptAgainLabel: string;
+  deleteMealLabel: string;
+  deletingMealLabel: string;
+  deleting: boolean;
+  onDelete: () => void;
 }) {
   const linkClass =
     "inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-white/45 transition-colors hover:text-white sm:text-xs";
@@ -270,6 +311,15 @@ function MealActionLinks({
         <RefreshCw className="h-3 w-3" />
         {promptAgainLabel}
       </Link>
+      <button
+        type="button"
+        onClick={onDelete}
+        disabled={deleting}
+        className={`${linkClass} hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50`}
+      >
+        <Trash2 className="h-3 w-3" />
+        {deleting ? deletingMealLabel : deleteMealLabel}
+      </button>
     </div>
   );
 }
@@ -290,6 +340,10 @@ function MealGridCard({
   canEdit,
   editNutritionLabel,
   promptAgainLabel,
+  deleteMealLabel,
+  deletingMealLabel,
+  deleting,
+  onDelete,
   manualEstimateLabel,
   unsupportedPhotoLabel,
   analyzingLabel,
@@ -300,6 +354,10 @@ function MealGridCard({
   canEdit: boolean;
   editNutritionLabel: string;
   promptAgainLabel: string;
+  deleteMealLabel: string;
+  deletingMealLabel: string;
+  deleting: boolean;
+  onDelete: () => void;
   manualEstimateLabel: string;
   unsupportedPhotoLabel: string;
   analyzingLabel: string;
@@ -346,6 +404,10 @@ function MealGridCard({
             mealId={meal.id}
             editNutritionLabel={editNutritionLabel}
             promptAgainLabel={promptAgainLabel}
+            deleteMealLabel={deleteMealLabel}
+            deletingMealLabel={deletingMealLabel}
+            deleting={deleting}
+            onDelete={onDelete}
           />
         ) : null}
       </div>
@@ -359,6 +421,10 @@ function MealListRow({
   canEdit,
   editNutritionLabel,
   promptAgainLabel,
+  deleteMealLabel,
+  deletingMealLabel,
+  deleting,
+  onDelete,
   manualEstimateLabel,
   unsupportedPhotoLabel,
   analyzingLabel,
@@ -369,6 +435,10 @@ function MealListRow({
   canEdit: boolean;
   editNutritionLabel: string;
   promptAgainLabel: string;
+  deleteMealLabel: string;
+  deletingMealLabel: string;
+  deleting: boolean;
+  onDelete: () => void;
   manualEstimateLabel: string;
   unsupportedPhotoLabel: string;
   analyzingLabel: string;
@@ -410,6 +480,10 @@ function MealListRow({
             mealId={meal.id}
             editNutritionLabel={editNutritionLabel}
             promptAgainLabel={promptAgainLabel}
+            deleteMealLabel={deleteMealLabel}
+            deletingMealLabel={deletingMealLabel}
+            deleting={deleting}
+            onDelete={onDelete}
           />
         ) : null}
       </div>
