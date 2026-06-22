@@ -91,6 +91,7 @@ export function WorkoutClient({
   initialLogs,
   initialCardioLog,
   initialFormChecks = [],
+  onNavigate,
 }: {
   userId: string;
   week: number;
@@ -99,6 +100,7 @@ export function WorkoutClient({
   initialLogs: Record<string, ExerciseLogState>;
   initialCardioLog: CardioLog;
   initialFormChecks?: FormCheckSubmission[];
+  onNavigate?: (week: number, day: number) => void;
 }) {
   const router = useRouter();
   const { t } = useLanguage();
@@ -197,6 +199,10 @@ export function WorkoutClient({
   }
 
   function navigate(nextWeek: number, nextDay: number) {
+    if (onNavigate) {
+      onNavigate(nextWeek, nextDay);
+      return;
+    }
     router.push(`/workouts?week=${nextWeek}&day=${nextDay}`);
   }
 

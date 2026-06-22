@@ -7,6 +7,7 @@ import { handleMessages, handleCoaches } from "./handlers/messages";
 import { handleNotifications } from "./handlers/notifications";
 import { handleAdmin } from "./handlers/admin";
 import { handleFriends } from "./handlers/friends";
+import { handleAppPages } from "./handlers/app-pages";
 import {
   handleFormChecks,
   handleStreak,
@@ -32,6 +33,8 @@ export async function handleApi(
   const [root, ...rest] = path;
 
   switch (root) {
+    case "app-pages":
+      return handleAppPages(req, ["app-pages", ...rest]);
     case "auth":
       return handleAuth(req, ["auth", ...rest]);
     case "user":

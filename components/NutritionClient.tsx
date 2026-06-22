@@ -31,6 +31,7 @@ export function NutritionClient({
   isToday,
   showAddButton = true,
   dateBasePath,
+  onDateChange,
 }: {
   userId: string;
   meals: MealSubmission[];
@@ -40,6 +41,7 @@ export function NutritionClient({
   isToday: boolean;
   showAddButton?: boolean;
   dateBasePath?: string;
+  onDateChange?: (date: string) => void;
 }) {
   const [meals, setMeals] = useState(initialMeals);
   const [analyzing, setAnalyzing] = useState(false);
@@ -106,6 +108,7 @@ export function NutritionClient({
         isToday={isToday}
         showAddButton={showAddButton}
         dateBasePath={dateBasePath}
+        onDateChange={onDateChange}
       />
 
       {showDailyTotals && (

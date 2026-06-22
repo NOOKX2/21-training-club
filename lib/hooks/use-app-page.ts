@@ -1,0 +1,86 @@
+import useSWR from "swr";
+import { api } from "@/lib/api-client";
+import type {
+  CardioLog,
+  Coach,
+  DailyNutritionScore,
+  FormCheckSubmission,
+  MealSubmission,
+  Message,
+  NutritionLimits,
+  ProgressPhoto,
+  WeeklyReport,
+  WeightEntry,
+  WorkoutDay,
+  WorkoutLog,
+} from "@/lib/data";
+
+const fetcher = <T,>(path: string) => api<T>(path);
+
+const swrOptions = {
+  keepPreviousData: true,
+  revalidateOnFocus: true,
+  dedupingInterval: 3_000,
+} as const;
+
+export type WorkoutsPageData = {
+  userId: string;
+  week: number;
+  day: number;
+  days: WorkoutDay[];
+  logs: Record<string, WorkoutLog>;
+  cardioLog: CardioLog;
+  formChecks: FormCheckSubmission[];
+};
+
+export type NutritionPageData = {
+  userId: string;
+  selectedDate: string;
+  isToday: boolean;
+  meals: MealSubmission[];
+  scoreTrend: DailyNutritionScore[];
+  limits: NutritionLimits;
+};
+
+export type ProgressPageData = {
+  userId: string;
+  history: WeightEntry[];
+  photos: ProgressPhoto[];
+  height: number | null;
+};
+
+export type CoachPageData = {
+  userId: string;
+  coachId: string;
+  coaches: Coach[];
+  messages: Message[];
+  weeklyReports: WeeklyReport[];
+  programStartDate: string;
+};
+
+export function useWorkoutsPage(week: number, day: number) {
+  return useSWR<WorkoutsPageData>(
+    `app-pages/workouts?week=${week}&day=${day}`,
+    fetcher,
+    swrOptions
+  );
+}
+
+export function useNutritionPage(date: string) {
+  return useSWR<NutritionPageData>(
+    `app-pages/nutrition?date=${date}`,
+    fetcher,
+    swrOptions
+  );
+}
+
+export function useProgressPage() {
+  return useSWR<ProgressPageData>("app-pages/progress", fetcher, swrOptions);
+}
+
+export function useCoachPage(coachId?: string) {
+  const key = coachId
+    ? `app-pages/coach?coach=${coachId}`
+    : "app-pages/coach";
+  return useSWR<CoachPageData>(key, fetcher, swrOptions);
+}

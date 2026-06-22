@@ -26,7 +26,9 @@ import { api, type User } from "@/lib/api-client";
 import { clientGlassNav } from "@/lib/client-ui";
 import { isAdminRole } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { PrefetchAppRoutes } from "@/components/PrefetchAppRoutes";
+import { PrefetchAppPages } from "@/components/PrefetchAppPages";
+import { AppUserProvider } from "@/components/AppUserProvider";
+import { SWRConfig } from "swr";
 
 const navItems = [
   { href: "/workouts", labelKey: "nav.workouts", icon: LayoutGrid },
@@ -277,9 +279,18 @@ export function AppShell({
   const pathname = usePathname();
 
   return (
+    <AppUserProvider user={user}>
+    <SWRConfig
+      value={{
+        fetcher: (key: string) => api(key),
+        keepPreviousData: true,
+        revalidateOnFocus: true,
+        dedupingInterval: 3_000,
+      }}
+    >
     <LanguageProvider>
     <MuscleStreakProvider>
-      <PrefetchAppRoutes />
+      <PrefetchAppPages />
       <div className="relative min-h-screen bg-[#0d0d0d] font-[family-name:var(--font-dm-sans)] text-[#F0F4F8]">
         <ClientAppBackground />
 
@@ -299,5 +310,7 @@ export function AppShell({
       </div>
     </MuscleStreakProvider>
     </LanguageProvider>
+    </SWRConfig>
+    </AppUserProvider>
   );
 }
