@@ -48,7 +48,16 @@ export function MainTabNavProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  const activePath = clientPath ?? pathname;
+  const activePath = useMemo(() => {
+    if (
+      clientPath &&
+      pathname !== clientPath &&
+      pathname.startsWith(`${clientPath}/`)
+    ) {
+      return pathname;
+    }
+    return clientPath ?? pathname;
+  }, [clientPath, pathname]);
 
   const navigateToTab = useCallback(
     (href: string) => {
@@ -61,8 +70,11 @@ export function MainTabNavProvider({ children }: { children: ReactNode }) {
 
       setClientPath(base);
       window.history.pushState({ mainTab: base }, "", href);
+      if (pathname !== base) {
+        router.replace(href, { scroll: false });
+      }
     },
-    [router]
+    [router, pathname]
   );
 
   const isTabActive = useCallback(
