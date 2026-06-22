@@ -13,6 +13,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { CoachPageView } from "@/components/app-pages/CoachPageView";
 import { NutritionPageView } from "@/components/app-pages/NutritionPageView";
+import { ProfilePageView } from "@/components/app-pages/ProfilePageView";
 import { ProgressPageView } from "@/components/app-pages/ProgressPageView";
 import { WorkoutsPageView } from "@/components/app-pages/WorkoutsPageView";
 import {
@@ -38,10 +39,6 @@ export function MainTabNavProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [clientPath, setClientPath] = useState<string | null>(null);
-
-  useEffect(() => {
-    setClientPath(null);
-  }, [pathname]);
 
   useEffect(() => {
     function onPopState() {
@@ -134,26 +131,16 @@ export function MainTabLink({
 }
 
 function MainTabPanel({
-  route,
   active,
   mounted,
   children,
 }: {
-  route: MainTabRoute;
   active: boolean;
   mounted: boolean;
   children: ReactNode;
 }) {
-  if (!mounted) return null;
-  return (
-    <div
-      id={`main-tab-${route.slice(1)}`}
-      hidden={!active}
-      aria-hidden={!active}
-    >
-      {children}
-    </div>
-  );
+  if (!mounted || !active) return null;
+  return <div>{children}</div>;
 }
 
 function tabView(route: MainTabRoute) {
@@ -178,6 +165,8 @@ function tabView(route: MainTabRoute) {
           <CoachPageView />
         </Suspense>
       );
+    case "/profile":
+      return <ProfilePageView />;
   }
 }
 
@@ -206,7 +195,6 @@ export function MainTabContent({ children }: { children: ReactNode }) {
       {MAIN_TAB_ROUTES.map((route) => (
         <MainTabPanel
           key={route}
-          route={route}
           active={activePath === route}
           mounted={mountedTabs.has(route)}
         >

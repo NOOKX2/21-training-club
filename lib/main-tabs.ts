@@ -3,6 +3,7 @@ export const MAIN_TAB_ROUTES = [
   "/nutrition",
   "/progress",
   "/coach",
+  "/profile",
 ] as const;
 
 export type MainTabRoute = (typeof MAIN_TAB_ROUTES)[number];

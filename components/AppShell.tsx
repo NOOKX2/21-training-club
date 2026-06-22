@@ -70,6 +70,7 @@ function AccountMenu({
   onLogout: () => void;
 }) {
   const pathname = usePathname();
+  const { activePath } = useMainTabNav();
   const { t } = useLanguage();
   const isVip = user.tier_level === "Tier 3" || user.tier_level === "Admin";
 
@@ -101,17 +102,17 @@ function AccountMenu({
               </span>
             ) : null}
           </div>
-          <Link
+          <MainTabLink
             href="/profile"
             onClick={() => setMenuOpen(false)}
             className={cn(
               "hidden w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-white/5 lg:flex",
-              isNavActive(pathname, "/profile") ? "text-white" : "text-white/70"
+              isNavActive(activePath, "/profile") ? "text-white" : "text-white/70"
             )}
           >
             <UserIcon className="h-4 w-4" />
             {t("nav.profile")}
-          </Link>
+          </MainTabLink>
           {isAdminRole(user.role) && (
             <Link
               href="/admin"

@@ -25,7 +25,6 @@ export function PrefetchAppPages() {
     for (const href of MAIN_TAB_ROUTES) {
       router.prefetch(href);
     }
-    router.prefetch("/profile");
 
     for (let w = 1; w <= 4; w += 1) {
       void preload(`app-pages/workouts?week=${w}`, fetcher);
@@ -37,6 +36,7 @@ export function PrefetchAppPages() {
     }
     void preload("app-pages/progress", fetcher);
     void preload("app-pages/coach", fetcher);
+    void preload("app-pages/profile", fetcher);
   }, [router, user]);
 
   return null;

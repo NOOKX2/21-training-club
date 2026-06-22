@@ -1,12 +1,15 @@
 import { NextRequest } from "next/server";
 import {
   getCoaches,
+  getLiftRecords,
   getMealsForUser,
   getMessages,
   getNutritionLimits,
   getNutritionScoreTrend,
   getProgressPhotos,
   getUserHeight,
+  getUserProfilePhotoUrl,
+  getUserTdee,
   getWeeklyReports,
   getWeightHistory,
   getWorkoutWeekPageData,
@@ -115,6 +118,28 @@ export async function handleAppPages(
         messages,
         weeklyReports,
         programStartDate: resolveProgramStartDate(user),
+      });
+    }
+
+    if (page === "profile") {
+      const [records, profilePhotoUrl, tdee] = await Promise.all([
+        getLiftRecords(user.id),
+        getUserProfilePhotoUrl(user.id),
+        getUserTdee(user.id),
+      ]);
+
+      return json({
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          tier_level: user.tier_level,
+          created_at: user.created_at,
+          access_expires_at: user.access_expires_at ?? null,
+          profile_photo_url: profilePhotoUrl,
+          tdee,
+        },
+        records,
       });
     }
 

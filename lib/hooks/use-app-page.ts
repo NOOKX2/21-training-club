@@ -5,6 +5,7 @@ import type {
   Coach,
   DailyNutritionScore,
   FormCheckSubmission,
+  LiftRecord,
   MealSubmission,
   Message,
   NutritionLimits,
@@ -66,6 +67,20 @@ export type CoachPageData = {
   programStartDate: string;
 };
 
+export type ProfilePageData = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    tier_level: string;
+    created_at?: string;
+    access_expires_at?: string | null;
+    profile_photo_url?: string | null;
+    tdee: number | null;
+  };
+  records: LiftRecord[];
+};
+
 export function useWorkoutWeek(week: number) {
   return useSWR<WorkoutWeekPageData>(
     `app-pages/workouts?week=${week}`,
@@ -100,4 +115,8 @@ export function useCoachPage(coachId?: string) {
     ? `app-pages/coach?coach=${coachId}`
     : "app-pages/coach";
   return useSWR<CoachPageData>(key, fetcher, swrOptions);
+}
+
+export function useProfilePage() {
+  return useSWR<ProfilePageData>("app-pages/profile", fetcher, swrOptions);
 }
