@@ -28,6 +28,13 @@ import { isAdminRole } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { PrefetchAppPages } from "@/components/PrefetchAppPages";
 import { AppUserProvider } from "@/components/AppUserProvider";
+import {
+  MainTabContent,
+  MainTabLink,
+  MainTabNavProvider,
+  useMainTabNav,
+} from "@/components/MainTabNav";
+import { isMainTabRoute } from "@/lib/main-tabs";
 import { SWRConfig } from "swr";
 
 const navItems = [
@@ -38,8 +45,9 @@ const navItems = [
   { href: "/profile", labelKey: "nav.profile", icon: UserIcon },
 ] as const;
 
-function isNavActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
+function isNavActive(activePath: string, href: string) {
+  const base = href.split("?")[0];
+  return activePath === base || activePath.startsWith(`${base}/`);
 }
 
 function tierBadgeLabel(tier: string, t: (key: string) => string) {
@@ -130,8 +138,35 @@ function AccountMenu({
   );
 }
 
-function MobileBottomNav({ pathname }: { pathname: string }) {
+function NavItemLink({
+  href,
+  className,
+  children,
+  onClick,
+}: {
+  href: string;
+  className?: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+}) {
+  const base = href.split("?")[0];
+  if (isMainTabRoute(base)) {
+    return (
+      <MainTabLink href={href} className={className} onClick={onClick}>
+        {children}
+      </MainTabLink>
+    );
+  }
+  return (
+    <Link href={href} className={className} onClick={onClick}>
+      {children}
+    </Link>
+  );
+}
+
+function MobileBottomNav() {
   const { t } = useLanguage();
+  const { activePath } = useMainTabNav();
 
   return (
     <nav
@@ -143,9 +178,9 @@ function MobileBottomNav({ pathname }: { pathname: string }) {
         style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
       >
         {navItems.map(({ href, labelKey, icon: Icon }) => {
-          const active = isNavActive(pathname, href);
+          const active = isNavActive(activePath, href);
           return (
-            <Link
+            <NavItemLink
               key={href}
               href={href}
               className={cn(
@@ -163,7 +198,7 @@ function MobileBottomNav({ pathname }: { pathname: string }) {
               {active ? (
                 <span className="absolute bottom-1 h-0.5 w-5 rounded-full bg-[#6B93B8]" />
               ) : null}
-            </Link>
+            </NavItemLink>
           );
         })}
       </div>
@@ -173,6 +208,7 @@ function MobileBottomNav({ pathname }: { pathname: string }) {
 
 function AppShellHeader({ user }: { user: User }) {
   const pathname = usePathname();
+  const { activePath } = useMainTabNav();
   const router = useRouter();
   const { t } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -211,9 +247,9 @@ function AppShellHeader({ user }: { user: User }) {
 
       <nav className="hidden items-center justify-center gap-2 justify-self-center lg:flex">
         {navItems.map(({ href, labelKey, icon: Icon }) => {
-          const active = isNavActive(pathname, href);
+          const active = isNavActive(activePath, href);
           return (
-            <Link
+            <NavItemLink
               key={href}
               href={href}
               className={cn(
@@ -230,7 +266,7 @@ function AppShellHeader({ user }: { user: User }) {
               <span className="text-[10px] font-semibold tracking-[0.12em] uppercase">
                 {t(labelKey)}
               </span>
-            </Link>
+            </NavItemLink>
           );
         })}
         {isAdminRole(user.role) && (
@@ -276,8 +312,6 @@ export function AppShell({
   user: User;
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-
   return (
     <AppUserProvider user={user}>
     <SWRConfig
@@ -290,6 +324,7 @@ export function AppShell({
     >
     <LanguageProvider>
     <MuscleStreakProvider>
+    <MainTabNavProvider>
       <PrefetchAppPages />
       <div className="relative min-h-screen bg-[#0d0d0d] font-[family-name:var(--font-dm-sans)] text-[#F0F4F8]">
         <ClientAppBackground />
@@ -303,11 +338,12 @@ export function AppShell({
         <main
           className="relative z-10 mx-auto w-full max-w-[900px] px-4 pt-[72px] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:px-6 lg:px-6 lg:pt-[108px] lg:pb-16"
         >
-          {children}
+          <MainTabContent>{children}</MainTabContent>
         </main>
 
-        <MobileBottomNav pathname={pathname} />
+        <MobileBottomNav />
       </div>
+    </MainTabNavProvider>
     </MuscleStreakProvider>
     </LanguageProvider>
     </SWRConfig>
