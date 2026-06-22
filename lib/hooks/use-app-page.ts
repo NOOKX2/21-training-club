@@ -1,5 +1,6 @@
 import useSWR, { type Cache } from "swr";
 import { api } from "@/lib/api-client";
+import { workoutWeekKey } from "@/lib/app-page-keys";
 import type {
   CardioLog,
   Coach,
@@ -81,9 +82,7 @@ export type ProfilePageData = {
   records: LiftRecord[];
 };
 
-export function workoutWeekKey(week: number) {
-  return `app-pages/workouts?week=${week}`;
-}
+export { workoutWeekKey } from "@/lib/app-page-keys";
 
 export function resolveWorkoutWeekData(
   week: number,

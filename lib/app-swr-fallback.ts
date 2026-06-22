@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import type { User } from "@/lib/api-client";
 import { getWorkoutWeekPageData } from "@/lib/data";
-import { workoutWeekKey } from "@/lib/hooks/use-app-page";
+import { workoutWeekKey } from "@/lib/app-page-keys";
 import {
   getProgramWeekDay,
   resolveProgramStartDate,
