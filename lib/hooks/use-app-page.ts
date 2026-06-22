@@ -1,4 +1,4 @@
-import useSWR from "swr";
+import useSWR, { type Cache } from "swr";
 import { api } from "@/lib/api-client";
 import type {
   CardioLog,
@@ -81,12 +81,25 @@ export type ProfilePageData = {
   records: LiftRecord[];
 };
 
+export function workoutWeekKey(week: number) {
+  return `app-pages/workouts?week=${week}`;
+}
+
+export function resolveWorkoutWeekData(
+  week: number,
+  swrData: WorkoutWeekPageData | undefined,
+  cache: Cache
+): WorkoutWeekPageData | undefined {
+  if (swrData?.week === week) return swrData;
+  const cached = cache.get(workoutWeekKey(week))?.data as
+    | WorkoutWeekPageData
+    | undefined;
+  if (cached?.week === week) return cached;
+  return undefined;
+}
+
 export function useWorkoutWeek(week: number) {
-  return useSWR<WorkoutWeekPageData>(
-    `app-pages/workouts?week=${week}`,
-    fetcher,
-    swrOptions
-  );
+  return useSWR<WorkoutWeekPageData>(workoutWeekKey(week), fetcher, swrOptions);
 }
 
 /** @deprecated use useWorkoutWeek — kept for compatibility */

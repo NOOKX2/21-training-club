@@ -309,15 +309,18 @@ function AppShellHeader({ user }: { user: User }) {
 export function AppShell({
   user,
   children,
+  swrFallback = {},
 }: {
   user: User;
   children: React.ReactNode;
+  swrFallback?: Record<string, unknown>;
 }) {
   return (
     <AppUserProvider user={user}>
     <SWRConfig
       value={{
         fetcher: (key: string) => api(key),
+        fallback: swrFallback,
         keepPreviousData: true,
         revalidateOnFocus: true,
         dedupingInterval: 3_000,

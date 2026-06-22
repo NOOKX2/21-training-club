@@ -2,6 +2,7 @@ import { DM_Sans, Inter } from "next/font/google";
 import { Suspense } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MuscleStatusLoader } from "@/components/MuscleStatusLoader";
+import { buildWorkoutsSwrFallback } from "@/lib/app-swr-fallback";
 import { requireAppUser } from "@/lib/session";
 
 const inter = Inter({
@@ -20,9 +21,10 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireAppUser();
+  const swrFallback = await buildWorkoutsSwrFallback(user);
   return (
     <div className={`${inter.variable} ${dmSans.variable}`}>
-      <AppShell user={user}>
+      <AppShell user={user} swrFallback={swrFallback}>
         <Suspense fallback={null}>
           <MuscleStatusLoader userId={user.id} />
         </Suspense>

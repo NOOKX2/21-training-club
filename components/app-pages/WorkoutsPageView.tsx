@@ -2,10 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { preload } from "swr";
+import { preload, useSWRConfig } from "swr";
 import { WorkoutClient } from "@/components/WorkoutClient";
 import { useAppUser } from "@/components/AppUserProvider";
-import { useWorkoutWeek } from "@/lib/hooks/use-app-page";
+import {
+  resolveWorkoutWeekData,
+  useWorkoutWeek,
+  workoutWeekKey,
+} from "@/lib/hooks/use-app-page";
 import { api } from "@/lib/api-client";
 import {
   getProgramWeekDay,
@@ -41,6 +45,7 @@ export function WorkoutsPageView() {
   );
   const [week, setWeek] = useState(initial.week);
   const [day, setDay] = useState(initial.day);
+  const { cache } = useSWRConfig();
   const { data } = useWorkoutWeek(week);
 
   useEffect(() => {
@@ -55,21 +60,19 @@ export function WorkoutsPageView() {
 
   useEffect(() => {
     for (let w = 1; w <= 4; w += 1) {
-      if (w === week) continue;
-      void preload(`app-pages/workouts?week=${w}`, fetcher);
+      void preload(workoutWeekKey(w), fetcher);
     }
-  }, [week]);
+  }, []);
 
   const navigate = useCallback((nextWeek: number, nextDay: number) => {
+    void preload(workoutWeekKey(nextWeek), fetcher);
     setWeek(nextWeek);
     setDay(nextDay);
     replaceAppUrl("/workouts", { week: nextWeek, day: nextDay });
-    if (nextWeek !== week) {
-      void preload(`app-pages/workouts?week=${nextWeek}`, fetcher);
-    }
-  }, [week]);
+  }, []);
 
-  const slice = data?.byDay[day];
+  const weekData = resolveWorkoutWeekData(week, data, cache);
+  const slice = weekData?.byDay[day];
   const emptyCardio = {
     duration_minutes: "",
     distance_km: "",
@@ -78,13 +81,14 @@ export function WorkoutsPageView() {
 
   return (
     <WorkoutClient
-      userId={data?.userId ?? user.id}
+      userId={weekData?.userId ?? user.id}
       week={week}
       day={day}
       days={slice?.days ?? []}
       initialLogs={slice?.logs ?? {}}
       initialCardioLog={slice?.cardioLog ?? emptyCardio}
       initialFormChecks={slice?.formChecks ?? []}
+      contentReady={Boolean(slice)}
       onNavigate={navigate}
     />
   );

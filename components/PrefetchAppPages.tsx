@@ -6,6 +6,7 @@ import { preload } from "swr";
 import { useAppUser } from "@/components/AppUserProvider";
 import { api } from "@/lib/api-client";
 import { localDateKey, shiftDateKey } from "@/lib/date-utils";
+import { workoutWeekKey } from "@/lib/hooks/use-app-page";
 import { MAIN_TAB_ROUTES } from "@/lib/main-tabs";
 import {
   getProgramWeekDay,
@@ -27,7 +28,7 @@ export function PrefetchAppPages() {
     }
 
     for (let w = 1; w <= 4; w += 1) {
-      void preload(`app-pages/workouts?week=${w}`, fetcher);
+      void preload(workoutWeekKey(w), fetcher);
     }
     void preload(`app-pages/nutrition?date=${today}`, fetcher);
     for (let offset = -7; offset <= 0; offset += 1) {
