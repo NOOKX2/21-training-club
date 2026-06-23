@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import {
-  adminChatKey,
+  adminChatMessagesKey,
+  adminChatRosterKey,
   adminClientsKey,
   adminCustomProgramsKey,
   adminDashboardKey,
@@ -70,12 +71,13 @@ export async function buildAdminSwrFallback(): Promise<Record<string, unknown>> 
       selectedClientId && coachId
         ? await getMessages(selectedClientId, coachId)
         : [];
-    fallback[adminChatKey(clientParam ?? undefined)] = {
-      coaches,
-      clients,
-      selectedClientId,
-      messages,
-    };
+    fallback[adminChatRosterKey()] = { coaches, clients, coachId };
+    if (selectedClientId) {
+      fallback[adminChatMessagesKey(selectedClientId)] = {
+        clientId: selectedClientId,
+        messages,
+      };
+    }
     return fallback;
   }
 

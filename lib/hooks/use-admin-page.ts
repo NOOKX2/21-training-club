@@ -1,4 +1,4 @@
-import useSWR from "swr";
+import useSWR, { type Cache } from "swr";
 import { api } from "@/lib/api-client";
 import type {
   AdminActivity,
@@ -18,7 +18,9 @@ import type {
 } from "@/lib/data";
 import type { ProgramCardio } from "@/lib/program-cardio";
 import {
+  adminChatMessagesKey,
   adminChatKey,
+  adminChatRosterKey,
   adminClientsKey,
   adminCustomProgramsKey,
   adminDashboardKey,
@@ -45,6 +47,17 @@ export type AdminDashboardPageData = {
 
 export type AdminClientsPageData = {
   clients: AdminClient[];
+};
+
+export type AdminChatRosterData = {
+  coaches: Coach[];
+  clients: AdminChatClient[];
+  coachId: string;
+};
+
+export type AdminChatMessagesData = {
+  clientId: string;
+  messages: Message[];
 };
 
 export type AdminChatPageData = {
@@ -109,8 +122,42 @@ export function useAdminClientsPage() {
   return useSWR<AdminClientsPageData>(adminClientsKey(), fetcher, swrOptions);
 }
 
+export function useAdminChatRoster() {
+  return useSWR<AdminChatRosterData>(
+    adminChatRosterKey(),
+    fetcher,
+    swrOptions
+  );
+}
+
+export function useAdminChatMessages(clientId: string) {
+  return useSWR<AdminChatMessagesData>(
+    clientId ? adminChatMessagesKey(clientId) : null,
+    fetcher,
+    swrOptions
+  );
+}
+
+export function resolveAdminChatMessages(
+  clientId: string,
+  swrData: AdminChatMessagesData | undefined,
+  cache: Cache
+): Message[] | undefined {
+  if (swrData?.clientId === clientId) return swrData.messages;
+  const cached = cache.get(adminChatMessagesKey(clientId))?.data as
+    | AdminChatMessagesData
+    | undefined;
+  if (cached?.clientId === clientId) return cached.messages;
+  return undefined;
+}
+
+/** @deprecated use useAdminChatRoster + useAdminChatMessages */
 export function useAdminChatPage(clientId?: string) {
-  return useSWR<AdminChatPageData>(adminChatKey(clientId), fetcher, swrOptions);
+  return useSWR<AdminChatPageData>(
+    adminChatKey(clientId),
+    fetcher,
+    swrOptions
+  );
 }
 
 export function useAdminProgramsPage(track: string, day: number) {

@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useSWRConfig } from "swr";
 import { ChevronLeft, User } from "lucide-react";
 import { ChatComposer, ChatMessageList } from "@/components/chat/ChatUI";
 import { CoachProfileEditor } from "@/components/admin/CoachProfileEditor";
 import { CoachWeeklyFeedbackForm } from "@/components/admin/CoachWeeklyFeedbackForm";
 import { markChatNotificationsRead } from "@/components/NotificationBell";
 import { api } from "@/lib/api-client";
+import { adminChatMessagesKey } from "@/lib/admin-page-keys";
 import type { AdminChatClient, Coach, Message } from "@/lib/data";
 import { expiryCountdownLabel } from "./admin-utils";
 import { cn } from "@/lib/utils";
@@ -17,33 +18,41 @@ export function AdminChat({
   clients,
   coaches,
   selectedClientId,
-  initialMessages,
+  messages: messagesProp,
+  messagesLoading = false,
+  onSelectClient,
 }: {
   clients: AdminChatClient[];
   coaches: Coach[];
   selectedClientId: string;
-  initialMessages: Message[];
+  messages: Message[];
+  messagesLoading?: boolean;
+  onSelectClient: (clientId: string) => void;
 }) {
-  const router = useRouter();
+  const { mutate } = useSWRConfig();
   const coach = coaches[0];
   const [content, setContent] = useState("");
   const [attachment, setAttachment] = useState("");
+  const [messages, setMessages] = useState(messagesProp);
 
   const selected = clients.find((c) => c.id === selectedClientId);
   const selectedDaysLeft = selected ? expiryCountdownLabel(selected) : null;
-  const messages = initialMessages;
+
+  useEffect(() => {
+    setMessages(messagesProp);
+  }, [messagesProp, selectedClientId]);
 
   useEffect(() => {
     if (!selectedClientId) return;
     markChatNotificationsRead({
       isAdmin: true,
       clientId: selectedClientId,
-    }).catch(() => { });
+    }).catch(() => {});
   }, [selectedClientId]);
 
   async function send() {
     if ((!content.trim() && !attachment) || !selectedClientId || !coach) return;
-    await api("messages", {
+    const result = await api<Message>("messages", {
       method: "POST",
       body: JSON.stringify({
         user_id: selectedClientId,
@@ -55,7 +64,15 @@ export function AdminChat({
     });
     setContent("");
     setAttachment("");
-    router.refresh();
+    setMessages((current) => [...current, result]);
+    void mutate(
+      adminChatMessagesKey(selectedClientId),
+      (current?: { clientId: string; messages: Message[] }) => ({
+        clientId: selectedClientId,
+        messages: [...(current?.messages ?? messages), result],
+      }),
+      { revalidate: false }
+    );
   }
 
   function onAttach(f: File | null) {
@@ -93,13 +110,14 @@ export function AdminChat({
                   c.id === selectedClientId ? "bg-zinc-900" : "hover:bg-zinc-900/50"
                 )}
               >
-                <Link
-                  href={`/admin/chat?client=${c.id}`}
+                <button
+                  type="button"
+                  onClick={() => onSelectClient(c.id)}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800"
                   aria-label={`Chat with ${c.name}`}
                 >
                   <User className="h-4 w-4 text-zinc-500" />
-                </Link>
+                </button>
                 <div className="min-w-0 flex-1">
                   <Link
                     href={`/admin/clients/${c.id}/profile`}
@@ -107,13 +125,14 @@ export function AdminChat({
                   >
                     {c.name}
                   </Link>
-                  <Link
-                    href={`/admin/chat?client=${c.id}`}
-                    className="block min-w-0"
+                  <button
+                    type="button"
+                    onClick={() => onSelectClient(c.id)}
+                    className="block min-w-0 text-left"
                   >
                     <p className="truncate text-xs text-zinc-500">{c.email}</p>
                     <p className="text-[10px] text-zinc-600">{c.tier_level}</p>
-                  </Link>
+                  </button>
                 </div>
                 <div className="shrink-0 text-right">
                   <p className={cn("text-[10px] font-semibold", daysLeft.className)}>
@@ -134,13 +153,14 @@ export function AdminChat({
           {selected ? (
             <>
               <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3 sm:px-5 sm:py-4">
-                <Link
-                  href="/admin/chat"
+                <button
+                  type="button"
+                  onClick={() => onSelectClient("")}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-800 text-zinc-300 hover:bg-zinc-900 lg:hidden"
                   aria-label="Back to clients"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                </Link>
+                </button>
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800">
                   <User className="h-4 w-4 text-zinc-500" />
                 </div>
@@ -168,12 +188,18 @@ export function AdminChat({
               <CoachWeeklyFeedbackForm clientId={selectedClientId} />
 
               <div className="flex min-h-0 flex-1 flex-col bg-black/50">
-                <ChatMessageList
-                  messages={messages}
-                  isOwnMessage={(m) => m.sender === "coach"}
-                  peerLabel={selected.name}
-                  emptyHint="Send a message to start coaching this client."
-                />
+                {messagesLoading ? (
+                  <div className="flex flex-1 items-center justify-center text-sm text-zinc-500">
+                    Loading messages…
+                  </div>
+                ) : (
+                  <ChatMessageList
+                    messages={messages}
+                    isOwnMessage={(m) => m.sender === "coach"}
+                    peerLabel={selected.name}
+                    emptyHint="Send a message to start coaching this client."
+                  />
+                )}
 
                 <ChatComposer
                   content={content}

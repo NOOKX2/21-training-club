@@ -51,6 +51,29 @@ export async function handleAdminPages(
       return json({ clients });
     }
 
+    if (page === "chat-roster") {
+      const coaches = await getCoaches();
+      const coachId = coaches[0]?.id ?? "";
+      const clients = await getAdminClientsForChat(coachId);
+      return json({ coaches, clients, coachId });
+    }
+
+    if (page === "chat-messages") {
+      const coaches = await getCoaches();
+      const coachId = coaches[0]?.id ?? "";
+      const clientParam = params.get("client");
+      if (!clientParam) {
+        return json({ clientId: "", messages: [] as Awaited<ReturnType<typeof getMessages>> });
+      }
+      const clients = await getAdminClientsForChat(coachId);
+      const clientId = clients.some((c) => c.id === clientParam)
+        ? clientParam
+        : "";
+      const messages =
+        clientId && coachId ? await getMessages(clientId, coachId) : [];
+      return json({ clientId, messages });
+    }
+
     if (page === "chat") {
       const coaches = await getCoaches();
       const coachId = coaches[0]?.id ?? "";

@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { preload } from "swr";
 import { api } from "@/lib/api-client";
 import {
-  adminChatKey,
+  adminChatMessagesKey,
+  adminChatRosterKey,
   adminClientsKey,
   adminCustomProgramsKey,
   adminDashboardKey,
@@ -23,7 +24,7 @@ export function PrefetchAdminPages() {
   useEffect(() => {
     void preload(adminDashboardKey(), fetcher);
     void preload(adminClientsKey(), fetcher);
-    void preload(adminChatKey(), fetcher);
+    void preload(adminChatRosterKey(), fetcher);
     void preload(adminProgramsKey("Fat Loss", 1), fetcher);
     void preload(adminCustomProgramsKey("", 1, 1), fetcher);
     void preload(adminResultsKey("", 1, 1), fetcher);

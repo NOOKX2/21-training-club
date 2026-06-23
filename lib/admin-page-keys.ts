@@ -8,6 +8,15 @@ export function adminClientsKey() {
   return "admin-pages/clients";
 }
 
+export function adminChatRosterKey() {
+  return "admin-pages/chat-roster";
+}
+
+export function adminChatMessagesKey(clientId: string) {
+  return `admin-pages/chat-messages?client=${clientId}`;
+}
+
+/** @deprecated use adminChatRosterKey + adminChatMessagesKey */
 export function adminChatKey(clientId?: string) {
   return clientId
     ? `admin-pages/chat?client=${clientId}`
