@@ -688,6 +688,44 @@ export async function getUserHeight(userId: string): Promise<number | null> {
   return doc?.height != null ? Number(doc.height) : null;
 }
 
+export async function getProgressPhotosForPage(
+  userId: string
+): Promise<ProgressPhoto[]> {
+  const db = await getDb();
+  const photos = await db
+    .collection("progress_photos")
+    .find({ user_id: userId })
+    .project({ _id: 0 })
+    .sort({ date: 1 })
+    .toArray();
+
+  return photos.map((p) => {
+    const id = String(p.id);
+    const hasStoredPhoto = Boolean(p.photo_file_id || p.photo_base64);
+    return {
+      id,
+      photo_url: hasStoredPhoto ? progressPhotoStreamPath(id) : undefined,
+      photo_base64:
+        !p.photo_file_id && p.photo_base64
+          ? String(p.photo_base64)
+          : undefined,
+      weight:
+        p.weight != null && p.weight !== "" ? Number(p.weight) : undefined,
+      notes: p.notes ? String(p.notes) : undefined,
+      date: p.date ? String(p.date) : undefined,
+    };
+  });
+}
+
+export async function getProgressPageData(userId: string) {
+  const [history, photos, height] = await Promise.all([
+    getWeightHistory(userId),
+    getProgressPhotosForPage(userId),
+    getUserHeight(userId),
+  ]);
+  return { userId, history, photos, height };
+}
+
 export async function getProgressPhotos(userId: string): Promise<ProgressPhoto[]> {
   const db = await getDb();
   const photos = await db

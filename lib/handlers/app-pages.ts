@@ -6,12 +6,10 @@ import {
   getMessages,
   getNutritionLimits,
   getNutritionScoreTrend,
-  getProgressPhotos,
-  getUserHeight,
+  getProgressPageData,
   getUserProfilePhotoUrl,
   getUserTdee,
   getWeeklyReports,
-  getWeightHistory,
   getWorkoutWeekPageData,
 } from "../data";
 import { localDateKey } from "../date-utils";
@@ -85,18 +83,8 @@ export async function handleAppPages(
     }
 
     if (page === "progress") {
-      const [history, photos, height] = await Promise.all([
-        getWeightHistory(user.id),
-        getProgressPhotos(user.id),
-        getUserHeight(user.id),
-      ]);
-
-      return json({
-        userId: user.id,
-        history,
-        photos,
-        height,
-      });
+      const progress = await getProgressPageData(user.id);
+      return json(progress);
     }
 
     if (page === "coach") {

@@ -1,18 +1,26 @@
 "use client";
 
+import { AppPageLoading } from "@/components/AppPageLoading";
 import { ProgressClient } from "@/components/ProgressClient";
-import { useProgressPage } from "@/lib/hooks/use-app-page";
+import {
+  resolveProgressPageData,
+  useProgressPage,
+} from "@/lib/hooks/use-app-page";
+import { useSWRConfig } from "swr";
 
 export function ProgressPageView() {
+  const { cache } = useSWRConfig();
   const { data } = useProgressPage();
-  if (!data) return null;
+  const resolved = resolveProgressPageData(data, cache);
+
+  if (!resolved) return <AppPageLoading />;
 
   return (
     <ProgressClient
-      userId={data.userId}
-      initialHistory={data.history}
-      initialPhotos={data.photos}
-      initialHeight={data.height}
+      userId={resolved.userId}
+      initialHistory={resolved.history}
+      initialPhotos={resolved.photos}
+      initialHeight={resolved.height}
     />
   );
 }

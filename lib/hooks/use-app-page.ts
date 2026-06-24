@@ -1,6 +1,6 @@
 import useSWR, { type Cache } from "swr";
 import { api } from "@/lib/api-client";
-import { workoutWeekKey } from "@/lib/app-page-keys";
+import { progressPageKey, workoutWeekKey } from "@/lib/app-page-keys";
 import type {
   CardioLog,
   Coach,
@@ -118,8 +118,16 @@ export function useNutritionPage(date: string) {
   );
 }
 
+export function resolveProgressPageData(
+  swrData: ProgressPageData | undefined,
+  cache: Cache
+): ProgressPageData | undefined {
+  if (swrData) return swrData;
+  return cache.get(progressPageKey())?.data as ProgressPageData | undefined;
+}
+
 export function useProgressPage() {
-  return useSWR<ProgressPageData>("app-pages/progress", fetcher, swrOptions);
+  return useSWR<ProgressPageData>(progressPageKey(), fetcher, swrOptions);
 }
 
 export function useCoachPage(coachId?: string) {
