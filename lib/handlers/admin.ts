@@ -6,6 +6,7 @@ import { getAdminUser, hashPassword } from "../auth";
 import { json, error, parseBody, handleAuthError } from "../api-helpers";
 import {
   saveExerciseVideoToGridFS,
+  deleteExerciseVideoFromGridFS,
 } from "../exercise-video-storage";
 import {
   MAX_EXERCISE_MEDIA_FILES,
@@ -14,6 +15,7 @@ import {
 } from "../exercise-video-constants";
 import {
   getExerciseMediaStreamTarget,
+  getStoredExerciseMediaItems,
   mediaTypeFromDataUrl,
   type ExerciseMediaStored,
 } from "../exercise-media-utils";
@@ -323,9 +325,6 @@ export async function handleAdmin(
 
       const uploads =
         video.media_files?.filter((file) => file.data_base64?.trim()) ?? [];
-      if (!uploads.length && !video.video_base64 && !video.video_url) {
-        return error("At least one image or video file is required", 400);
-      }
       if (uploads.length > MAX_EXERCISE_MEDIA_FILES) {
         return error(`Maximum ${MAX_EXERCISE_MEDIA_FILES} files per exercise`, 400);
       }
@@ -399,6 +398,143 @@ export async function handleAdmin(
       await db.collection("exercise_videos").insertOne(doc);
       const { video_base64: _, ...safe } = doc;
       return json(safe);
+    }
+
+    if (
+      resource === "exercise-videos" &&
+      segments[2] &&
+      !segments[3] &&
+      req.method === "PUT"
+    ) {
+      const videoId = segments[2];
+      const existing = await db.collection("exercise_videos").findOne({ id: videoId });
+      if (!existing) return error("Video not found", 404);
+
+      const body = await parseBody<{
+        name?: string;
+        tags?: string[];
+        remove_media_ids?: string[];
+        add_media_files?: Array<{ data_base64: string }>;
+      }>(req);
+      const update: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+
+      if (body.name !== undefined) {
+        const trimmed = body.name.trim();
+        if (!trimmed) return error("Exercise title is required", 400);
+        update.name = trimmed;
+      }
+      if (body.tags !== undefined) {
+        update.tags = body.tags
+          .map((tag) => tag.trim())
+          .filter(Boolean);
+      }
+
+      const removeIds = new Set(body.remove_media_ids ?? []);
+      const addFiles =
+        body.add_media_files?.filter((file) => file.data_base64?.trim()) ?? [];
+      const hasMediaUpdate = removeIds.size > 0 || addFiles.length > 0;
+
+      if (hasMediaUpdate) {
+        let mediaItems = getStoredExerciseMediaItems(
+          existing as {
+            media_items?: ExerciseMediaStored[];
+            video_url?: string;
+            video_file_id?: string;
+          }
+        );
+
+        for (const item of mediaItems) {
+          if (removeIds.has(item.id) && item.file_id) {
+            await deleteExerciseVideoFromGridFS(db, item.file_id).catch(
+              () => undefined
+            );
+          }
+        }
+
+        mediaItems = mediaItems.filter((item) => !removeIds.has(item.id));
+
+        if (mediaItems.length + addFiles.length > MAX_EXERCISE_MEDIA_FILES) {
+          return error(
+            `Maximum ${MAX_EXERCISE_MEDIA_FILES} files per exercise`,
+            400
+          );
+        }
+
+        for (const file of addFiles) {
+          const mediaId = uuidv4();
+          const type = mediaTypeFromDataUrl(file.data_base64);
+          const fileId = `${videoId}__${mediaId}`;
+
+          if (type === "image") {
+            const comma = file.data_base64.indexOf(",");
+            const approxBytes =
+              comma >= 0
+                ? Math.ceil((file.data_base64.length - comma - 1) * 0.75)
+                : 0;
+            if (approxBytes > MAX_IMAGE_BYTES) {
+              return error(`Each image must be under ${MAX_IMAGE_MB}MB`, 400);
+            }
+          }
+
+          try {
+            const { contentType, size } = await saveExerciseVideoToGridFS(
+              db,
+              fileId,
+              file.data_base64
+            );
+            mediaItems.push({
+              id: mediaId,
+              type,
+              file_id: fileId,
+              content_type: contentType,
+            });
+            if (!update.file_size && type === "video") {
+              update.file_size = size;
+            }
+          } catch (e) {
+            const message = e instanceof Error ? e.message : "Upload failed";
+            return error(message, 400);
+          }
+        }
+
+        if (mediaItems.length === 0) {
+          return error("At least one image or video is required", 400);
+        }
+
+        const firstVideo = mediaItems.find((item) => item.type === "video");
+        update.media_items = mediaItems;
+        update.video_url =
+          mediaItems.length === 1 ? mediaItems[0].video_url ?? "" : "";
+        update.video_file_id = firstVideo?.file_id ?? "";
+        update.content_type = firstVideo?.content_type ?? "";
+        if (!firstVideo) {
+          update.file_size = 0;
+        }
+      }
+
+      if (Object.keys(update).length === 1) {
+        return error("No updates provided", 400);
+      }
+
+      const unsetFields: Record<string, ""> = {};
+      if (hasMediaUpdate) {
+        unsetFields.video_base64 = "";
+      }
+
+      await db.collection("exercise_videos").updateOne(
+        { id: videoId },
+        {
+          $set: update,
+          ...(Object.keys(unsetFields).length ? { $unset: unsetFields } : {}),
+        }
+      );
+      const updated = await db.collection("exercise_videos").findOne(
+        { id: videoId },
+        { projection: { _id: 0, video_base64: 0 } }
+      );
+      return json(updated);
     }
 
     if (

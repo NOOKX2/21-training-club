@@ -50,6 +50,12 @@ export async function getExerciseVideoFileMeta(
   };
 }
 
+export async function deleteExerciseVideoFromGridFS(db: Db, fileId: string): Promise<void> {
+  const bucket = new GridFSBucket(db, { bucketName: BUCKET_NAME });
+  const files = await bucket.find({ filename: fileId }).toArray();
+  await Promise.all(files.map((file) => bucket.delete(file._id)));
+}
+
 export async function openExerciseVideoStream(
   db: Db,
   fileId: string,

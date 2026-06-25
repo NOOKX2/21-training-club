@@ -40,6 +40,10 @@ export function ProgramBuilder({
   );
   const [cardioMinutes, setCardioMinutes] = useState(initialCardioForm.minutes);
   const [cardioKm, setCardioKm] = useState(initialCardioForm.km);
+  const [cardioTreadmillSpeed, setCardioTreadmillSpeed] = useState(
+    initialCardioForm.treadmillSpeed
+  );
+  const [cardioIncline, setCardioIncline] = useState(initialCardioForm.incline);
   const [cardioNotes, setCardioNotes] = useState(initialCardioForm.notes);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -72,6 +76,8 @@ export function ProgramBuilder({
       setExercises([]);
       setCardioMinutes("");
       setCardioKm("");
+      setCardioTreadmillSpeed("");
+      setCardioIncline("");
       setCardioNotes("");
     }
   }
@@ -92,6 +98,8 @@ export function ProgramBuilder({
             : formStateToCardio({
                 minutes: cardioMinutes,
                 km: cardioKm,
+                treadmillSpeed: cardioTreadmillSpeed,
+                incline: cardioIncline,
                 notes: cardioNotes,
               }),
           rest_day: restDay,
@@ -241,9 +249,13 @@ export function ProgramBuilder({
         <CardioEditor
           minutes={cardioMinutes}
           km={cardioKm}
+          treadmillSpeed={cardioTreadmillSpeed}
+          incline={cardioIncline}
           notes={cardioNotes}
           onMinutesChange={setCardioMinutes}
           onKmChange={setCardioKm}
+          onTreadmillSpeedChange={setCardioTreadmillSpeed}
+          onInclineChange={setCardioIncline}
           onNotesChange={setCardioNotes}
         />
 

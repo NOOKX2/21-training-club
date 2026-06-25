@@ -6,16 +6,24 @@ import { FieldLabel, Input } from "@/components/ui/Input";
 export function CardioEditor({
   minutes,
   km,
+  treadmillSpeed,
+  incline,
   notes,
   onMinutesChange,
   onKmChange,
+  onTreadmillSpeedChange,
+  onInclineChange,
   onNotesChange,
 }: {
   minutes: string;
   km: string;
+  treadmillSpeed: string;
+  incline: string;
   notes: string;
   onMinutesChange: (value: string) => void;
   onKmChange: (value: string) => void;
+  onTreadmillSpeedChange: (value: string) => void;
+  onInclineChange: (value: string) => void;
   onNotesChange: (value: string) => void;
 }) {
   return (
@@ -48,6 +56,28 @@ export function CardioEditor({
             placeholder="5"
             value={km}
             onChange={(e) => onKmChange(e.target.value)}
+          />
+        </div>
+        <div>
+          <FieldLabel>Treadmill Speed (km/h)</FieldLabel>
+          <Input
+            type="number"
+            min={0}
+            step="0.1"
+            placeholder="6"
+            value={treadmillSpeed}
+            onChange={(e) => onTreadmillSpeedChange(e.target.value)}
+          />
+        </div>
+        <div>
+          <FieldLabel>Incline (%)</FieldLabel>
+          <Input
+            type="number"
+            min={0}
+            step="0.5"
+            placeholder="5"
+            value={incline}
+            onChange={(e) => onInclineChange(e.target.value)}
           />
         </div>
       </div>

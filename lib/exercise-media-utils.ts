@@ -18,6 +18,29 @@ export function mediaTypeFromDataUrl(dataUrl: string): "image" | "video" {
   return "video";
 }
 
+export function getStoredExerciseMediaItems(doc: {
+  media_items?: ExerciseMediaStored[];
+  video_url?: string;
+  video_file_id?: string;
+}): ExerciseMediaStored[] {
+  if (Array.isArray(doc.media_items) && doc.media_items.length > 0) {
+    return doc.media_items;
+  }
+
+  if (doc.video_url || doc.video_file_id) {
+    return [
+      {
+        id: "legacy",
+        type: "video",
+        video_url: doc.video_url ? String(doc.video_url) : undefined,
+        file_id: doc.video_file_id ? String(doc.video_file_id) : undefined,
+      },
+    ];
+  }
+
+  return [];
+}
+
 export function resolveExerciseMediaItems(doc: {
   id?: string;
   media_items?: ExerciseMediaStored[];

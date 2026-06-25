@@ -47,6 +47,10 @@ export function CustomPrograms({
   );
   const [cardioMinutes, setCardioMinutes] = useState(initialCardioForm.minutes);
   const [cardioKm, setCardioKm] = useState(initialCardioForm.km);
+  const [cardioTreadmillSpeed, setCardioTreadmillSpeed] = useState(
+    initialCardioForm.treadmillSpeed
+  );
+  const [cardioIncline, setCardioIncline] = useState(initialCardioForm.incline);
   const [cardioNotes, setCardioNotes] = useState(initialCardioForm.notes);
   const [restDay, setRestDay] = useState(initialRestDay);
   const [limits, setLimits] = useState({
@@ -111,6 +115,8 @@ export function CustomPrograms({
       setExercises([]);
       setCardioMinutes("");
       setCardioKm("");
+      setCardioTreadmillSpeed("");
+      setCardioIncline("");
       setCardioNotes("");
     }
     setError("");
@@ -148,6 +154,8 @@ export function CustomPrograms({
     const cardio = formStateToCardio({
       minutes: cardioMinutes,
       km: cardioKm,
+      treadmillSpeed: cardioTreadmillSpeed,
+      incline: cardioIncline,
       notes: cardioNotes,
     });
     const hasCardio = cardio != null;
@@ -436,15 +444,21 @@ export function CustomPrograms({
           <CardioEditor
             minutes={cardioMinutes}
             km={cardioKm}
+            treadmillSpeed={cardioTreadmillSpeed}
+            incline={cardioIncline}
             notes={cardioNotes}
             onMinutesChange={setCardioMinutes}
             onKmChange={setCardioKm}
+            onTreadmillSpeedChange={setCardioTreadmillSpeed}
+            onInclineChange={setCardioIncline}
             onNotesChange={setCardioNotes}
           />
 
           {(exercises.length > 0 ||
             cardioMinutes.trim() ||
             cardioKm.trim() ||
+            cardioTreadmillSpeed.trim() ||
+            cardioIncline.trim() ||
             cardioNotes.trim()) && (
             <Button
               type="button"
