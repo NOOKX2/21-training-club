@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Save, Trash2, User } from "lucide-react";
+import { Plus, Copy, Save, Trash2, User } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/Button";
 import { Input, FieldLabel } from "@/components/ui/Input";
@@ -73,8 +73,16 @@ export function CustomPrograms({
   const [limitsMessage, setLimitsMessage] = useState("");
   const [error, setError] = useState("");
   const [limitsError, setLimitsError] = useState("");
+  const [copyFromWeek, setCopyFromWeek] = useState(Math.max(1, week - 1));
+  const [copyingWeek, setCopyingWeek] = useState(false);
+  const [copyMessage, setCopyMessage] = useState("");
+  const [copyError, setCopyError] = useState("");
 
   const selected = clients.find((c) => c.email === selectedEmail);
+
+  useEffect(() => {
+    setCopyFromWeek(Math.max(1, week - 1));
+  }, [week]);
 
   function navigate(email: string, nextWeek: number, nextDay: number) {
     const params = new URLSearchParams();
@@ -191,6 +199,38 @@ export function CustomPrograms({
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function copyWeekProgram() {
+    if (!selectedEmail || copyFromWeek === week) return;
+    if (
+      !window.confirm(
+        `Copy all days from Week ${copyFromWeek} to Week ${week} for ${selected?.name ?? "this client"}? Existing days in Week ${week} will be overwritten.`
+      )
+    ) {
+      return;
+    }
+    setCopyingWeek(true);
+    setCopyMessage("");
+    setCopyError("");
+    setMessage("");
+    setError("");
+    try {
+      const result = await api<{ message: string }>("admin/custom-programs/copy-week", {
+        method: "POST",
+        body: JSON.stringify({
+          client_email: selectedEmail,
+          from_week: copyFromWeek,
+          to_week: week,
+        }),
+      });
+      setCopyMessage(result.message);
+      router.refresh();
+    } catch (err) {
+      setCopyError(err instanceof Error ? err.message : "Copy failed");
+    } finally {
+      setCopyingWeek(false);
     }
   }
 
@@ -359,6 +399,51 @@ export function CustomPrograms({
               </select>
             </div>
           </div>
+
+          {week > 1 && (
+            <div className="mb-5 border border-zinc-800 bg-zinc-950 p-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                Copy Program Week
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                Reuse the same program as another week — copies all 7 days at once.
+              </p>
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <div className="min-w-[10rem] flex-1">
+                  <FieldLabel>Copy from week</FieldLabel>
+                  <select
+                    value={copyFromWeek}
+                    onChange={(e) => setCopyFromWeek(Number(e.target.value))}
+                    className="w-full border border-zinc-700 bg-black px-4 py-3 text-sm text-white"
+                  >
+                    {[1, 2, 3, 4]
+                      .filter((w) => w !== week)
+                      .map((w) => (
+                        <option key={w} value={w}>
+                          Week {w}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-[46px] gap-2 border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-900"
+                  onClick={() => void copyWeekProgram()}
+                  disabled={copyingWeek || copyFromWeek === week}
+                >
+                  <Copy className="h-4 w-4" />
+                  {copyingWeek ? "Copying…" : `Copy to Week ${week}`}
+                </Button>
+              </div>
+              {copyError ? (
+                <p className="mt-3 text-sm text-red-400">{copyError}</p>
+              ) : null}
+              {copyMessage ? (
+                <p className="mt-3 text-sm text-[#6B93B8]">{copyMessage}</p>
+              ) : null}
+            </div>
+          )}
 
           <RestDayToggle checked={restDay} onChange={handleRestDayChange} className="mb-5" />
 

@@ -23,6 +23,8 @@ import { respondExerciseVideoStream, respondFormCheckVideoStream } from "../vide
 import { normalizeDateOnly, validateAccessDates, type Gender } from "../access";
 import { serializeCoach, type CoachDoc } from "../coach-utils";
 import { sendFormCheckFeedbackToChat } from "../form-check-utils";
+import { normalizeProgramCardio } from "../program-cardio";
+import type { ProgramExercise } from "../data";
 import {
   deleteProfilePhotoFromGridFS,
   saveProfilePhotoToGridFS,
@@ -630,6 +632,107 @@ export async function handleAdmin(
         created_at: new Date().toISOString(),
       });
       return json({ message: "Feedback submitted successfully" });
+    }
+
+    if (
+      resource === "custom-programs" &&
+      segments[2] === "copy-week" &&
+      req.method === "POST"
+    ) {
+      const body = await parseBody<{
+        client_email: string;
+        from_week: number;
+        to_week: number;
+      }>(req);
+      const clientEmail = body.client_email?.trim();
+      const fromWeek = Number(body.from_week);
+      const toWeek = Number(body.to_week);
+      if (!clientEmail) return error("Client email required", 400);
+      if (!Number.isFinite(fromWeek) || fromWeek < 1 || fromWeek > 4) {
+        return error("Invalid source week", 400);
+      }
+      if (!Number.isFinite(toWeek) || toWeek < 1 || toWeek > 4) {
+        return error("Invalid target week", 400);
+      }
+      if (fromWeek === toWeek) {
+        return error("Source and target week must be different", 400);
+      }
+
+      const clientFilter = {
+        $or: [{ client_email: clientEmail }, { user_email: clientEmail }],
+      };
+      const weekFilter =
+        fromWeek === 1
+          ? { $or: [{ week: 1 }, { week: { $exists: false } }] }
+          : { week: fromWeek };
+
+      const sourcePrograms = await db
+        .collection("custom_programs")
+        .find({ $and: [clientFilter, weekFilter] })
+        .project({ _id: 0, day: 1, exercises: 1, cardio: 1, rest_day: 1, week: 1 })
+        .toArray();
+
+      if (!sourcePrograms.length) {
+        return error(`No custom program found for week ${fromWeek}`, 404);
+      }
+
+      const byDay = new Map<number, (typeof sourcePrograms)[number]>();
+      function programWeekRank(program: { week?: unknown }, targetWeek: number): number {
+        if (program.week === targetWeek) return 2;
+        if (targetWeek === 1 && program.week == null) return 1;
+        return 0;
+      }
+      for (const program of sourcePrograms) {
+        const day = Number(program.day);
+        if (!Number.isFinite(day) || day < 1 || day > 7) continue;
+        const existing = byDay.get(day);
+        if (
+          !existing ||
+          programWeekRank(program, fromWeek) > programWeekRank(existing, fromWeek)
+        ) {
+          byDay.set(day, program);
+        }
+      }
+
+      const now = new Date().toISOString();
+      let copiedDays = 0;
+      for (const [day, source] of byDay.entries()) {
+        const restDay = Boolean(source.rest_day);
+        const exercises = restDay
+          ? []
+          : ((source.exercises as ProgramExercise[]) ?? []).map((exercise) => ({
+              ...exercise,
+              id: uuidv4(),
+            }));
+        const cardio = restDay
+          ? null
+          : normalizeProgramCardio(source.cardio);
+
+        await db.collection("custom_programs").updateOne(
+          { user_email: clientEmail, week: toWeek, day },
+          {
+            $set: {
+              client_email: clientEmail,
+              user_email: clientEmail,
+              week: toWeek,
+              day,
+              exercises,
+              cardio,
+              rest_day: restDay,
+              updated_at: now,
+            },
+          },
+          { upsert: true }
+        );
+        copiedDays += 1;
+      }
+
+      return json({
+        message: `Copied ${copiedDays} day(s) from week ${fromWeek} to week ${toWeek}`,
+        copied_days: copiedDays,
+        from_week: fromWeek,
+        to_week: toWeek,
+      });
     }
 
     if (resource === "custom-programs" && req.method === "POST") {
