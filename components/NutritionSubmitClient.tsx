@@ -15,6 +15,7 @@ import { clientCard, clientField } from "@/lib/client-ui";
 import type { MealSubmission } from "@/lib/data";
 import { getEffectiveMealMacros } from "@/lib/nutrition-utils";
 import { readImageDataUrl } from "@/lib/file-upload";
+import { localDateKey, nutritionReturnPath } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
 const MEAL_OPTION_KEYS = [
@@ -27,9 +28,11 @@ const MEAL_OPTION_KEYS = [
 export function NutritionSubmitClient({
   userId,
   meal,
+  mealDate,
 }: {
   userId: string;
   meal?: MealSubmission;
+  mealDate?: string | null;
 }) {
   const isEdit = Boolean(meal);
   const initialMacros = meal ? getEffectiveMealMacros(meal) : { protein: 0, carbs: 0, fat: 0 };
@@ -50,6 +53,7 @@ export function NutritionSubmitClient({
   const [photoLoading, setPhotoLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const returnPath = nutritionReturnPath(mealDate);
 
   async function onPhoto(file: File) {
     setPhotoLoading(true);
@@ -99,12 +103,13 @@ export function NutritionSubmitClient({
           method: "POST",
           body: JSON.stringify({
             user_id: userId,
+            ...(mealDate ? { meal_date: mealDate } : {}),
             ...payload,
           }),
         });
         celebrateMuscleTask("meal");
       }
-      router.push("/nutrition");
+      router.push(returnPath);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Submit failed");
@@ -115,7 +120,10 @@ export function NutritionSubmitClient({
 
   return (
     <div className="space-y-0">
-      <NutritionHeader showAddButton={false} />
+      <NutritionHeader
+        showAddButton={false}
+        selectedDate={mealDate ?? localDateKey(new Date())}
+      />
 
       <form onSubmit={submitMeal} className={cn(clientCard, "mx-auto mt-10 max-w-2xl p-8")}>
         <div className="mb-8 flex items-center justify-between">
@@ -123,7 +131,7 @@ export function NutritionSubmitClient({
             {isEdit ? t("nutrition.editNutritionTitle") : t("nutrition.submitTitle")}
           </h2>
           <Link
-            href="/nutrition"
+            href={returnPath}
             className="text-zinc-400 transition-colors hover:text-white"
             aria-label="Close"
           >

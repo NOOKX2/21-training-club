@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSWRConfig } from "swr";
 import { ClipboardCheck, ListPlus, Plus, Trash2, Zap } from "lucide-react";
 import { ClientSectionHeading } from "@/components/ClientSectionHeading";
 import { RestDayCard } from "@/components/RestDayCard";
@@ -32,6 +33,7 @@ import {
 } from "@/lib/client-ui";
 import { MOBILE_FILE_INPUT_CLASS } from "@/lib/file-upload";
 import { formatProgramCardio } from "@/lib/program-cardio";
+import { workoutWeekKey, type WorkoutWeekPageData } from "@/lib/hooks/use-app-page";
 import { cn } from "@/lib/utils";
 
 const WEEK_OPTIONS = [1, 2, 3, 4];
@@ -105,6 +107,7 @@ export function WorkoutClient({
   onNavigate?: (week: number, day: number) => void;
 }) {
   const router = useRouter();
+  const { mutate } = useSWRConfig();
   const { t } = useLanguage();
   const { celebrateMuscleTask } = useMuscleReward();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -130,24 +133,40 @@ export function WorkoutClient({
   const [savedIds, setSavedIds] = useState<Record<string, boolean>>({});
   const [cardioSaved, setCardioSaved] = useState(false);
   const [messages, setMessages] = useState<Record<string, string>>({});
+  const navigationKey = `${week}-${day}`;
+  const prevNavigationKey = useRef<string | null>(null);
 
   useEffect(() => {
-    setLogs(initialLogs);
-    setCardioLog(initialCardioLog);
-    const map: Record<string, FormCheckSubmission> = {};
-    for (const fc of initialFormChecks) {
-      if (fc.exercise_id) map[fc.exercise_id] = fc;
+    const isNavigation = prevNavigationKey.current !== navigationKey;
+    if (isNavigation) {
+      prevNavigationKey.current = navigationKey;
+      setLogs(initialLogs);
+      setCardioLog(initialCardioLog);
+      const map: Record<string, FormCheckSubmission> = {};
+      for (const fc of initialFormChecks) {
+        if (fc.exercise_id) map[fc.exercise_id] = fc;
+      }
+      setFormChecks(map);
+      const open: Record<string, boolean> = {};
+      for (const [exerciseId, log] of Object.entries(initialLogs)) {
+        if (log.sets?.length) open[exerciseId] = true;
+      }
+      setCustomSetsOpen(open);
+      setSavedIds({});
+      setCardioSaved(false);
+      setMessages({});
+      return;
     }
-    setFormChecks(map);
-    const open: Record<string, boolean> = {};
-    for (const [exerciseId, log] of Object.entries(initialLogs)) {
-      if (log.sets?.length) open[exerciseId] = true;
-    }
-    setCustomSetsOpen(open);
-    setSavedIds({});
-    setCardioSaved(false);
-    setMessages({});
-  }, [week, day, initialLogs, initialCardioLog, initialFormChecks]);
+
+    setLogs((prev) => ({ ...initialLogs, ...prev }));
+    setCardioLog((prev) => {
+      const hasLocalCardio =
+        prev.duration_minutes.trim() ||
+        prev.distance_km.trim() ||
+        prev.calories_burned.trim();
+      return hasLocalCardio ? prev : initialCardioLog;
+    });
+  }, [navigationKey, initialLogs, initialCardioLog, initialFormChecks]);
 
   const dayData = days.find((d) => d.day === day);
 
@@ -300,13 +319,37 @@ export function WorkoutClient({
     });
   }
 
+  function updateWorkoutWeekCache(
+    updater: (slice: WorkoutWeekPageData["byDay"][number]) => WorkoutWeekPageData["byDay"][number]
+  ) {
+    void mutate(
+      workoutWeekKey(week),
+      (current?: WorkoutWeekPageData) => {
+        if (!current?.byDay[day]) return current;
+        return {
+          ...current,
+          byDay: {
+            ...current.byDay,
+            [day]: updater(current.byDay[day]),
+          },
+        };
+      },
+      { revalidate: false }
+    );
+  }
+
   async function saveLog(exerciseId: string) {
     const entry = logs[exerciseId];
     const useCustomSets = customSetsOpen[exerciseId] && (entry?.sets?.length ?? 0) > 0;
     setSavingId(exerciseId);
     setMessages((m) => ({ ...m, [exerciseId]: "" }));
     try {
-      await api("workouts/log", {
+      const saved = await api<{
+        exercise_id: string;
+        actual_weight: string;
+        actual_reps: string;
+        sets?: WorkoutSetEntry[];
+      }>("workouts/log", {
         method: "POST",
         body: JSON.stringify({
           user_id: userId,
@@ -318,10 +361,27 @@ export function WorkoutClient({
           ...(useCustomSets ? { sets: entry?.sets } : {}),
         }),
       });
+      const logEntry: ExerciseLogState = {
+        actual_weight: saved.actual_weight,
+        actual_reps: saved.actual_reps,
+        sets: saved.sets,
+      };
+      setLogs((prev) => ({ ...prev, [exerciseId]: logEntry }));
+      updateWorkoutWeekCache((slice) => ({
+        ...slice,
+        logs: {
+          ...slice.logs,
+          [exerciseId]: {
+            exercise_id: exerciseId,
+            actual_weight: saved.actual_weight,
+            actual_reps: saved.actual_reps,
+            sets: saved.sets,
+          },
+        },
+      }));
       setSavedIds((s) => ({ ...s, [exerciseId]: true }));
       setTimeout(() => setSavedIds((s) => ({ ...s, [exerciseId]: false })), 2000);
       celebrateMuscleTask("workout");
-      router.refresh();
     } catch (err) {
       setMessages((m) => ({
         ...m,
@@ -335,7 +395,7 @@ export function WorkoutClient({
   async function saveCardioLog() {
     setSavingCardio(true);
     try {
-      await api("workouts/cardio-log", {
+      const saved = await api<CardioLog>("workouts/cardio-log", {
         method: "POST",
         body: JSON.stringify({
           user_id: userId,
@@ -346,10 +406,14 @@ export function WorkoutClient({
           calories_burned: cardioLog.calories_burned,
         }),
       });
+      setCardioLog(saved);
+      updateWorkoutWeekCache((slice) => ({
+        ...slice,
+        cardioLog: saved,
+      }));
       setCardioSaved(true);
       setTimeout(() => setCardioSaved(false), 2000);
       celebrateMuscleTask("workout");
-      router.refresh();
     } catch (err) {
       setMessages((m) => ({
         ...m,

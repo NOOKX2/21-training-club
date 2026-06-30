@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { preload, useSWRConfig } from "swr";
 import { WorkoutClient } from "@/components/WorkoutClient";
@@ -73,11 +73,15 @@ export function WorkoutsPageView() {
 
   const weekData = resolveWorkoutWeekData(week, data, cache);
   const slice = weekData?.byDay[day];
-  const emptyCardio = {
-    duration_minutes: "",
-    distance_km: "",
-    calories_burned: "",
-  };
+  const emptyLogs = useMemo(() => ({}), []);
+  const emptyCardio = useMemo(
+    () => ({
+      duration_minutes: "",
+      distance_km: "",
+      calories_burned: "",
+    }),
+    []
+  );
 
   return (
     <WorkoutClient
@@ -85,7 +89,7 @@ export function WorkoutsPageView() {
       week={week}
       day={day}
       days={slice?.days ?? []}
-      initialLogs={slice?.logs ?? {}}
+      initialLogs={slice?.logs ?? emptyLogs}
       initialCardioLog={slice?.cardioLog ?? emptyCardio}
       initialFormChecks={slice?.formChecks ?? []}
       contentReady={Boolean(slice)}

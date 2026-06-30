@@ -8,6 +8,11 @@ import { json, error, parseBody, handleAuthError } from "../api-helpers";
 import { createAdminNotification } from "../admin-notifications";
 import { isBrowserDisplayableImageDataUrl } from "../image-utils";
 import { analyzeMealWithDify, analyzePromptWithDify, isDifyConfigured } from "../dify";
+import {
+  localDateKey,
+  parsePastOrTodayDateKey,
+  submittedAtForDateKey,
+} from "../date-utils";
 
 async function getEditableMeal(
   db: Awaited<ReturnType<typeof getDb>>,
@@ -237,13 +242,20 @@ export async function handleNutrition(
       const userDoc = await db.collection("users").findOne({
         _id: new ObjectId(String(meal.user_id)),
       });
+      const mealDate = parsePastOrTodayDateKey(
+        typeof meal.meal_date === "string" ? meal.meal_date : null
+      );
+      const submittedAt = mealDate
+        ? submittedAtForDateKey(mealDate)
+        : new Date().toISOString();
       const doc = {
         id: uuidv4(),
         ...meal,
-        submitted_at: new Date().toISOString(),
+        submitted_at: submittedAt,
         user_name: userDoc?.name ?? "Unknown",
         user_email: userDoc?.email ?? "",
       };
+      delete (doc as Record<string, unknown>).meal_date;
       await db.collection("meal_submissions_v2").insertOne(doc);
       const mealLabel =
         meal.meal_type === "custom" && meal.custom_name

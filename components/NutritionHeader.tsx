@@ -104,8 +104,15 @@ export function NutritionHeader({
               {t("common.today")}
             </button>
           )}
-          {showAddButton && isToday && (
-            <Link href="/nutrition/add" className="w-full sm:w-auto">
+          {showAddButton && (
+            <Link
+              href={
+                selectedDate === today
+                  ? "/nutrition/add"
+                  : `/nutrition/add?date=${encodeURIComponent(selectedDate)}`
+              }
+              className="w-full sm:w-auto"
+            >
               <Button type="button" className="h-11 w-full gap-2 px-4 text-xs sm:w-auto sm:px-5">
                 <Plus className="h-4 w-4" />
                 <span className="sm:hidden">{t("common.add")}</span>
