@@ -1,4 +1,4 @@
-import { ProfileClient } from "@/components/ProfileClient";
+import { ProfileClient } from "@/app/(app)/profile/_components/ProfileClient";
 import {
   getAdminClientById,
   getLiftRecords,

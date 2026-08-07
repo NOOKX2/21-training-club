@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Maximize2, X } from "lucide-react";
 import { youtubeEmbedUrl } from "@/lib/exercise-video-utils";
 import { cn } from "@/lib/utils";
@@ -12,11 +13,8 @@ export type ExerciseVideoSource = {
   media_id?: string;
 };
 
-function hasPlayableVideo(video: ExerciseVideoSource): boolean {
-  return Boolean(
-    video.video_url ||
-    video.has_uploaded_file
-  );
+export function hasPlayableVideo(video: ExerciseVideoSource): boolean {
+  return Boolean(video.video_url || video.has_uploaded_file);
 }
 
 function VideoMedia({
@@ -77,6 +75,82 @@ function VideoMedia({
   return null;
 }
 
+export function ExerciseVideoModal({
+  open,
+  onClose,
+  video,
+  title,
+  streamBasePath = "/api/exercise-video",
+}: {
+  open: boolean;
+  onClose: () => void;
+  video: ExerciseVideoSource;
+  title?: string;
+  streamBasePath?: string;
+}) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, onClose]);
+
+  if (!open || !hasPlayableVideo(video) || !mounted) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-4 sm:p-6"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title ? `${title} demo video` : "Exercise demo video"}
+    >
+      <div
+        className="relative w-full max-w-5xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <p className="text-sm font-bold uppercase tracking-wide text-white sm:text-base">
+            {title ?? "Exercise Demo"}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950 text-white hover:border-zinc-500"
+            aria-label="Close video"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <VideoMedia
+          video={video}
+          title={title}
+          className="aspect-video w-full rounded-2xl bg-black object-contain"
+          streamBasePath={streamBasePath}
+          autoPlay
+        />
+        <p className="mt-3 text-center text-xs text-zinc-500">
+          Tap outside or press Esc to close
+        </p>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function ExerciseVideoPlayer({
   video,
   title,
@@ -95,20 +169,6 @@ export function ExerciseVideoPlayer({
   const [expanded, setExpanded] = useState(false);
   const playable = hasPlayableVideo(video);
   const canExpand = compact && (expandable ?? true) && playable;
-
-  useEffect(() => {
-    if (!expanded) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setExpanded(false);
-    };
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [expanded]);
 
   if (!playable) {
     return (
@@ -172,44 +232,13 @@ export function ExerciseVideoPlayer({
         )}
       </button>
 
-      {expanded && (
-        <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setExpanded(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={title ? `${title} demo video` : "Exercise demo video"}
-        >
-          <div
-            className="relative w-full max-w-4xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between gap-4">
-              <p className="text-sm font-bold uppercase tracking-wide text-white">
-                {title ?? "Exercise Demo"}
-              </p>
-              <button
-                type="button"
-                onClick={() => setExpanded(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950 text-white hover:border-zinc-500"
-                aria-label="Close video"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <VideoMedia
-              video={video}
-              title={title}
-              className="aspect-video w-full rounded-2xl bg-black object-contain"
-              streamBasePath={streamBasePath}
-              autoPlay
-            />
-            <p className="mt-3 text-center text-xs text-zinc-500">
-              Tap outside or press Esc to close
-            </p>
-          </div>
-        </div>
-      )}
+      <ExerciseVideoModal
+        open={expanded}
+        onClose={() => setExpanded(false)}
+        video={video}
+        title={title}
+        streamBasePath={streamBasePath}
+      />
     </>
   );
 }

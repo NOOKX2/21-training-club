@@ -1,4 +1,4 @@
-import { ProgressClient } from "@/components/ProgressClient";
+import { ProgressClient } from "@/app/(app)/progress/_components/ProgressClient";
 import {
   getAdminClientById,
   getProgressPhotos,

@@ -12,6 +12,7 @@ import {
   getWeeklyReports,
   getWorkoutWeekPageData,
 } from "../data";
+import { CLIENT_WORKOUT_LOG_WEEK } from "../app-page-keys";
 import { localDateKey } from "../date-utils";
 import { getCurrentUser } from "../auth";
 import { json, error, handleAuthError } from "../api-helpers";
@@ -41,16 +42,12 @@ export async function handleAppPages(
 
     if (page === "workouts") {
       const params = req.nextUrl.searchParams;
-      let week = Math.min(
-        4,
-        Math.max(1, parseInt(params.get("week") ?? "0", 10) || 1)
+      const week = CLIENT_WORKOUT_LOG_WEEK;
+      const { byDay, activeProgram } = await getWorkoutWeekPageData(
+        user.id,
+        user.email,
+        week
       );
-
-      if (!params.has("week")) {
-        week = getProgramWeekDay(resolveProgramStartDate(user)).week;
-      }
-
-      const byDay = await getWorkoutWeekPageData(user.id, user.email, week);
       const defaultDay = params.has("day")
         ? Math.min(7, Math.max(1, parseInt(params.get("day") ?? "1", 10) || 1))
         : getProgramWeekDay(resolveProgramStartDate(user)).day;
@@ -60,6 +57,7 @@ export async function handleAppPages(
         week,
         defaultDay,
         byDay,
+        activeProgram,
       });
     }
 

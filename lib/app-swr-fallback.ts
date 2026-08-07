@@ -1,6 +1,10 @@
 import { headers } from "next/headers";
 import type { User } from "@/lib/api-client";
-import { progressPageKey, workoutWeekKey } from "@/lib/app-page-keys";
+import {
+  CLIENT_WORKOUT_LOG_WEEK,
+  progressPageKey,
+  workoutWeekKey,
+} from "@/lib/app-page-keys";
 import { getProgressPageData, getWorkoutWeekPageData } from "@/lib/data";
 import {
   getProgramWeekDay,
@@ -29,24 +33,17 @@ export async function buildAppSwrFallback(
 export async function buildWorkoutsSwrFallback(
   user: User
 ): Promise<Record<string, unknown>> {
-  const { pathname } = await parseRequestUrl();
   const programWeekDay = getProgramWeekDay(resolveProgramStartDate(user));
-  const onWorkouts =
-    pathname === "/workouts" || pathname.startsWith("/workouts/");
-  const weeks = onWorkouts ? [1, 2, 3, 4] : [programWeekDay.week];
-  const fallback: Record<string, unknown> = {};
+  const week = CLIENT_WORKOUT_LOG_WEEK;
+  const byDay = await getWorkoutWeekPageData(user.id, user.email, week);
 
-  await Promise.all(
-    weeks.map(async (week) => {
-      const byDay = await getWorkoutWeekPageData(user.id, user.email, week);
-      fallback[workoutWeekKey(week)] = {
-        userId: user.id,
-        week,
-        defaultDay: programWeekDay.day,
-        byDay,
-      };
-    })
-  );
-
-  return fallback;
+  return {
+    [workoutWeekKey(week)]: {
+      userId: user.id,
+      week,
+      defaultDay: programWeekDay.day,
+      byDay: byDay.byDay,
+      activeProgram: byDay.activeProgram,
+    },
+  };
 }

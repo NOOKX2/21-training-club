@@ -1,4 +1,4 @@
-import { NutritionClient } from "@/components/NutritionClient";
+import { NutritionClient } from "@/app/(app)/nutrition/_components/NutritionClient";
 import {
   getAdminClientById,
   getMealsForUser,

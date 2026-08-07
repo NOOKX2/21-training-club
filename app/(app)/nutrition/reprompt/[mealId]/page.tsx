@@ -1,4 +1,4 @@
-import { NutritionRepromptClient } from "@/components/NutritionRepromptClient";
+import { NutritionRepromptClient } from "@/app/(app)/nutrition/reprompt/[mealId]/_components/NutritionRepromptClient";
 import { buildMealPrompt, isDifyConfigured } from "@/lib/dify";
 import { getMealById } from "@/lib/data";
 import { requireAppUser } from "@/lib/session";

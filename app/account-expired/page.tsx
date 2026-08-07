@@ -1,4 +1,4 @@
-import { AccountExpiredClient } from "@/components/AccountExpiredClient";
+import { AccountExpiredClient } from "@/app/account-expired/_components/AccountExpiredClient";
 
 export default async function AccountExpiredPage({
   searchParams,

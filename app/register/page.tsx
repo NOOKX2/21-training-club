@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { RegisterForm } from "@/components/RegisterForm";
+import { RegisterForm } from "@/app/register/_components/RegisterForm";
 import { getRegistrationEnabled } from "@/lib/data";
 
 export const dynamic = "force-dynamic";

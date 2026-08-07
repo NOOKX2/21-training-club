@@ -1,13 +1,42 @@
 import { v4 as uuidv4 } from "uuid";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { NextRequest } from "next/server";
 import { getDb } from "../db";
 import { getCurrentUser, getAdminUser } from "../auth";
 import { ObjectId } from "mongodb";
 import { json, error, parseBody, handleAuthError } from "../api-helpers";
 import { createAdminNotification } from "../admin-notifications";
+import { normalizeProgramCardio } from "../program-cardio";
+import type { ProgramExercise } from "../data";
+import {
+  createUserExercise,
+  listExerciseOptionsForUser,
+} from "../user-exercises";
+import {
+  applyUserWorkoutTemplate,
+  deleteUserWorkoutProgram,
+  deleteUserWorkoutTemplate,
+  getUserWorkoutProgramDays,
+  listUserWorkoutPrograms,
+  listUserWorkoutTemplates,
+  parseWorkoutProgramId,
+  saveUserWorkoutDay,
+  saveUserWorkoutTemplate,
+  setWorkoutProgramEnabled,
+  updateUserWorkoutProgramName,
+  workoutProgramCacheTag,
+} from "../user-workout-program";
 
 const DEFAULT_IMAGE =
   "https://images.unsplash.com/photo-1574680096145-d05b474e2155?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwyfHxneW0lMjB3b3Jrb3V0JTIwYmFyYmVsbHxlbnwwfHx8YmxhY2tfYW5kX3doaXRlfDE3ODA0OTQ2MjR8MA&ixlib=rb-4.1.0&q=85";
+
+function revalidateWorkoutProgram(userId: string) {
+  revalidateTag(workoutProgramCacheTag(userId), "max");
+  revalidatePath("/workouts/program");
+  revalidatePath("/workouts/program/edit");
+  revalidatePath("/workouts/program/edit/exercises");
+  revalidatePath("/workouts");
+}
 
 function defaultWeek(week: number) {
   return {
@@ -175,6 +204,267 @@ export async function handleWorkouts(
         cardio: dayData?.rest_day ? null : (dayData?.cardio ?? null),
         rest_day: Boolean(dayData?.rest_day),
       });
+    }
+
+    if (segments[1] === "exercise-videos" && req.method === "GET") {
+      const user = await getCurrentUser(req);
+      const videos = await listExerciseOptionsForUser(db, user.id);
+      return json(videos);
+    }
+
+    if (segments[1] === "exercises" && req.method === "POST") {
+      const user = await getCurrentUser(req);
+      const body = await parseBody<{ name: string }>(req);
+      const name = body.name?.trim();
+      if (!name) return error("Exercise name is required", 400);
+      const exercise = await createUserExercise(db, user.id, name);
+      return json({ id: exercise.id, name: exercise.name });
+    }
+
+    if (segments[1] === "my-program" && req.method === "GET" && !segments[2]) {
+      const user = await getCurrentUser(req);
+      const programs = await listUserWorkoutPrograms(db, user.id);
+      return json({ programs });
+    }
+
+    if (segments[1] === "programs" && segments[2] && req.method === "GET" && !segments[3]) {
+      const user = await getCurrentUser(req);
+      const programs = await listUserWorkoutPrograms(db, user.id);
+      return json({ programs });
+    }
+
+    if (
+      segments[1] === "programs" &&
+      segments[2] &&
+      segments[3] === "day" &&
+      segments[4] &&
+      req.method === "PUT"
+    ) {
+      const user = await getCurrentUser(req);
+      const programId = parseWorkoutProgramId(segments[2]);
+      const day = Math.min(7, Math.max(1, parseInt(segments[4], 10) || 1));
+      const body = await parseBody<{
+        exercises?: ProgramExercise[];
+        cardio?: unknown;
+        rest_day?: boolean;
+      }>(req);
+      const restDay = Boolean(body.rest_day);
+      const exercises = (body.exercises ?? []).map((exercise) => ({
+        id: exercise.id || uuidv4(),
+        name: String(exercise.name ?? "").trim(),
+        target_sets: Number(exercise.target_sets) || 3,
+        target_reps: String(exercise.target_reps ?? "8-12"),
+        demo_video_id: exercise.demo_video_id ?? null,
+      }));
+      const incomplete = !restDay && exercises.some((ex) => !ex.name.trim());
+      if (incomplete) {
+        return error("Every exercise needs a name", 400);
+      }
+      const saved = await saveUserWorkoutDay(
+        db,
+        user.id,
+        day,
+        {
+          exercises,
+          cardio: restDay ? null : normalizeProgramCardio(body.cardio),
+          rest_day: restDay,
+        },
+        programId
+      );
+      revalidateWorkoutProgram(user.id);
+      return json(saved);
+    }
+
+    if (
+      segments[1] === "programs" &&
+      segments[2] &&
+      !segments[3] &&
+      req.method === "PATCH"
+    ) {
+      const user = await getCurrentUser(req);
+      const programId = parseWorkoutProgramId(segments[2]);
+      const body = await parseBody<{ name?: string }>(req);
+      if (typeof body.name !== "string") {
+        return error("name is required", 400);
+      }
+      try {
+        const program = await updateUserWorkoutProgramName(
+          db,
+          user.id,
+          programId,
+          body.name
+        );
+        revalidateWorkoutProgram(user.id);
+        return json({ id: program.id, name: program.name });
+      } catch (err) {
+        return error(err instanceof Error ? err.message : "Update failed", 400);
+      }
+    }
+
+    if (
+      segments[1] === "programs" &&
+      segments[2] &&
+      segments[3] === "status" &&
+      req.method === "PUT"
+    ) {
+      const user = await getCurrentUser(req);
+      const body = await parseBody<{ active?: boolean }>(req);
+      if (typeof body.active !== "boolean") {
+        return error("active must be a boolean", 400);
+      }
+      try {
+        const result = await setWorkoutProgramEnabled(
+          db,
+          user.id,
+          parseWorkoutProgramId(segments[2]),
+          body.active
+        );
+        revalidateWorkoutProgram(user.id);
+        return json(result);
+      } catch (err) {
+        return error(err instanceof Error ? err.message : "Update failed", 400);
+      }
+    }
+
+    if (
+      segments[1] === "my-program" &&
+      segments[2] === "status" &&
+      req.method === "PUT"
+    ) {
+      const user = await getCurrentUser(req);
+      const body = await parseBody<{ program_id?: string; enabled?: boolean }>(req);
+      const programId = body.program_id?.trim();
+      if (!programId) return error("program_id is required", 400);
+      if (typeof body.enabled !== "boolean") {
+        return error("enabled must be a boolean", 400);
+      }
+      try {
+        const result = await setWorkoutProgramEnabled(
+          db,
+          user.id,
+          programId,
+          body.enabled
+        );
+        revalidateWorkoutProgram(user.id);
+        return json(result);
+      } catch (err) {
+        return error(err instanceof Error ? err.message : "Update failed", 400);
+      }
+    }
+
+    if (
+      segments[1] === "my-program" &&
+      segments[2] === "day" &&
+      segments[3] &&
+      req.method === "PUT"
+    ) {
+      const user = await getCurrentUser(req);
+      const day = Math.min(7, Math.max(1, parseInt(segments[3], 10) || 1));
+      const body = await parseBody<{
+        exercises?: ProgramExercise[];
+        cardio?: unknown;
+        rest_day?: boolean;
+        program_id?: string;
+      }>(req);
+      const programId = parseWorkoutProgramId(body.program_id);
+      const restDay = Boolean(body.rest_day);
+      const exercises = (body.exercises ?? []).map((exercise) => ({
+        id: exercise.id || uuidv4(),
+        name: String(exercise.name ?? "").trim(),
+        target_sets: Number(exercise.target_sets) || 3,
+        target_reps: String(exercise.target_reps ?? "8-12"),
+        demo_video_id: exercise.demo_video_id ?? null,
+      }));
+      const incomplete = !restDay && exercises.some((ex) => !ex.name.trim());
+      if (incomplete) {
+        return error("Every exercise needs a name", 400);
+      }
+      const saved = await saveUserWorkoutDay(db, user.id, day, {
+        exercises,
+        cardio: restDay ? null : normalizeProgramCardio(body.cardio),
+        rest_day: restDay,
+      }, programId);
+      revalidateWorkoutProgram(user.id);
+      return json(saved);
+    }
+
+    if (segments[1] === "templates" && req.method === "GET" && !segments[2]) {
+      const user = await getCurrentUser(req);
+      const templates = await listUserWorkoutTemplates(db, user.id);
+      return json(templates);
+    }
+
+    if (segments[1] === "templates" && req.method === "POST" && !segments[2]) {
+      const user = await getCurrentUser(req);
+      const body = await parseBody<{ name: string; source_program_id?: string }>(req);
+      const name = body.name?.trim();
+      if (!name) return error("Template name is required", 400);
+      const template = await saveUserWorkoutTemplate(
+        db,
+        user.id,
+        name,
+        parseWorkoutProgramId(body.source_program_id)
+      );
+      revalidateWorkoutProgram(user.id);
+      return json(template);
+    }
+
+    if (
+      segments[1] === "templates" &&
+      segments[2] &&
+      segments[3] === "apply" &&
+      req.method === "POST"
+    ) {
+      const user = await getCurrentUser(req);
+      const body = await parseBody<{ target_program_id?: string }>(req);
+      const targetProgramId = parseWorkoutProgramId(body.target_program_id);
+      const applied = await applyUserWorkoutTemplate(
+        db,
+        user.id,
+        segments[2],
+        targetProgramId
+      );
+      if (!applied) return error("Template not found", 404);
+      const days = await getUserWorkoutProgramDays(db, user.id, targetProgramId);
+      revalidateWorkoutProgram(user.id);
+      return json({ message: "Template applied", applied_days: applied, days });
+    }
+
+    if (
+      segments[1] === "programs" &&
+      segments[2] &&
+      !segments[3] &&
+      req.method === "DELETE"
+    ) {
+      const user = await getCurrentUser(req);
+      const programId = parseWorkoutProgramId(segments[2]);
+      try {
+        const result = await deleteUserWorkoutProgram(db, user.id, programId);
+        if (!result.deleted && !result.reset) {
+          return error("Program not found", 404);
+        }
+        revalidateWorkoutProgram(user.id);
+        return json({
+          message: result.reset ? "Program reset" : "Program deleted",
+          program_id: programId,
+          reset: result.reset,
+        });
+      } catch (err) {
+        return error(err instanceof Error ? err.message : "Delete failed", 400);
+      }
+    }
+
+    if (
+      segments[1] === "templates" &&
+      segments[2] &&
+      !segments[3] &&
+      req.method === "DELETE"
+    ) {
+      const user = await getCurrentUser(req);
+      const deleted = await deleteUserWorkoutTemplate(db, user.id, segments[2]);
+      if (!deleted) return error("Template not found", 404);
+      revalidateWorkoutProgram(user.id);
+      return json({ message: "Template deleted" });
     }
 
     if (segments[1] === "custom" && segments[2] && segments[3] && req.method === "GET") {

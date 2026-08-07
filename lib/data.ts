@@ -1,5 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
 import { normalizeProgramCardio, type ProgramCardio } from "@/lib/program-cardio";
+import {
+  getActiveWorkoutDayForUser,
+  getActiveWorkoutProgramInfo,
+} from "@/lib/user-workout-program";
+import { resolveProgramDayRestDay } from "@/lib/workout-program-shared";
 import { ObjectId } from "mongodb";
 import { normalizeDateOnly } from "./access";
 import { profilePhotoStreamPath } from "./profile-photo-storage";
@@ -235,7 +240,14 @@ export type ExerciseVideo = {
   video_url?: string;
   video_file_id?: string;
   tags?: string[];
+  type?: string;
+  muscle_target?: string;
+  equipment?: string;
+  difficulty?: string;
+  description?: string;
+  source?: string;
   created_at?: string;
+  updated_at?: string;
 };
 
 export type ProgramExercise = {
@@ -498,6 +510,48 @@ async function attachDemoVideos(
   });
 }
 
+type WorkoutDaySource = {
+  rest_day?: boolean;
+  exercises?: ProgramExercise[];
+  cardio?: unknown;
+};
+
+async function applyWorkoutDaySource(
+  db: Awaited<ReturnType<typeof getDb>>,
+  days: WorkoutDay[],
+  day: number,
+  source: WorkoutDaySource
+): Promise<WorkoutDay[]> {
+  const dayCardio = normalizeProgramCardio(source.cardio);
+  const isRestDay = resolveProgramDayRestDay({
+    exercises: (source.exercises as ProgramExercise[]) ?? [],
+    cardio: dayCardio,
+    rest_day: source.rest_day,
+  });
+
+  if (isRestDay) {
+    return days.map((d) =>
+      d.day === day ? { ...d, exercises: [], cardio: null, rest_day: true } : d
+    );
+  }
+
+  if (source.exercises?.length) {
+    const exercises = await attachDemoVideos(
+      db,
+      toWorkoutExercises(source.exercises as ProgramExercise[])
+    );
+    return days.map((d) =>
+      d.day === day
+        ? { ...d, exercises, cardio: dayCardio, rest_day: false }
+        : d
+    );
+  }
+
+  return days.map((d) =>
+    d.day === day ? { ...d, exercises: [], cardio: dayCardio, rest_day: false } : d
+  );
+}
+
 export async function getWorkoutPageData(
   userId: string,
   userEmail: string,
@@ -523,17 +577,12 @@ export async function getWorkoutPageData(
 
   let days = (workout.days as WorkoutDay[]) ?? [];
 
-  let customProgram = await db.collection("custom_programs").findOne(
-    {
-      $or: [
-        { user_email: userEmail, week, day },
-        { client_email: userEmail, week, day },
-      ],
-    },
-    { projection: { _id: 0 } }
-  );
-  if (!customProgram && week === 1) {
-    customProgram = await db.collection("custom_programs").findOne(
+  const activeDay = await getActiveWorkoutDayForUser(db, userId, day);
+
+  if (activeDay) {
+    days = await applyWorkoutDaySource(db, days, day, activeDay);
+  } else {
+    let customProgram = await db.collection("custom_programs").findOne(
       {
         $or: [
           { user_email: userEmail, day, week: { $exists: false } },
@@ -542,66 +591,39 @@ export async function getWorkoutPageData(
       },
       { projection: { _id: 0 } }
     );
-  }
+    if (!customProgram) {
+      customProgram = await db.collection("custom_programs").findOne(
+        {
+          $or: [
+            { user_email: userEmail, week, day },
+            { client_email: userEmail, week, day },
+          ],
+        },
+        { projection: { _id: 0 } }
+      );
+    }
 
-  let dayCardio: ProgramCardio | null = null;
-
-  if (customProgram) {
-    if (customProgram.rest_day) {
-      days = days.map((d) =>
-        d.day === day
-          ? { ...d, exercises: [], cardio: null, rest_day: true }
-          : d
+    if (customProgram) {
+      days = await applyWorkoutDaySource(
+        db,
+        days,
+        day,
+        customProgram as WorkoutDaySource
       );
     } else {
-      dayCardio = normalizeProgramCardio(customProgram.cardio);
-      if (customProgram.exercises?.length) {
-        const customExercises = await attachDemoVideos(
+      const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+      const track = trackForTier(String(user?.tier_level ?? ""));
+      const template = await db.collection("program_templates").findOne(
+        { track, day },
+        { projection: { _id: 0 } }
+      );
+      if (template) {
+        days = await applyWorkoutDaySource(
           db,
-          toWorkoutExercises(customProgram.exercises as ProgramExercise[])
+          days,
+          day,
+          template as WorkoutDaySource
         );
-        days = days.map((d) =>
-          d.day === day
-            ? { ...d, exercises: customExercises, cardio: dayCardio, rest_day: false }
-            : d
-        );
-      } else {
-        days = days.map((d) =>
-          d.day === day ? { ...d, cardio: dayCardio, rest_day: false } : d
-        );
-      }
-    }
-  } else {
-    const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
-    const track = trackForTier(String(user?.tier_level ?? ""));
-    const template = await db.collection("program_templates").findOne(
-      { track, day },
-      { projection: { _id: 0 } }
-    );
-    if (template) {
-      if (template.rest_day) {
-        days = days.map((d) =>
-          d.day === day
-            ? { ...d, exercises: [], cardio: null, rest_day: true }
-            : d
-        );
-      } else {
-        dayCardio = normalizeProgramCardio(template.cardio);
-        if (template.exercises?.length) {
-          const templateExercises = await attachDemoVideos(
-            db,
-            toWorkoutExercises(template.exercises as ProgramExercise[])
-          );
-          days = days.map((d) =>
-            d.day === day
-              ? { ...d, exercises: templateExercises, cardio: dayCardio, rest_day: false }
-              : d
-          );
-        } else {
-          days = days.map((d) =>
-            d.day === day ? { ...d, cardio: dayCardio, rest_day: false } : d
-          );
-        }
       }
     }
   }
@@ -652,23 +674,32 @@ export async function getWorkoutWeekPageData(
   userId: string,
   userEmail: string,
   week: number
-): Promise<Record<number, WorkoutDayPageSlice>> {
-  const slices = await Promise.all(
-    Array.from({ length: 7 }, (_, index) => index + 1).map(async (day) => {
-      const [{ days, logs, cardioLog }, formChecks] = await Promise.all([
-        getWorkoutPageData(userId, userEmail, week, day),
-        getFormChecksForUserWeekDay(userId, week, day),
-      ]);
-      return { day, days, logs, cardioLog, formChecks };
-    })
-  );
+): Promise<{
+  byDay: Record<number, WorkoutDayPageSlice>;
+  activeProgram: Awaited<ReturnType<typeof getActiveWorkoutProgramInfo>>;
+}> {
+  const db = await getDb();
+  const [slices, activeProgram] = await Promise.all([
+    Promise.all(
+      Array.from({ length: 7 }, (_, index) => index + 1).map(async (day) => {
+        const [{ days, logs, cardioLog }, formChecks] = await Promise.all([
+          getWorkoutPageData(userId, userEmail, week, day),
+          getFormChecksForUserWeekDay(userId, week, day),
+        ]);
+        return { day, days, logs, cardioLog, formChecks };
+      })
+    ),
+    getActiveWorkoutProgramInfo(db, userId),
+  ]);
 
-  return Object.fromEntries(
+  const byDay = Object.fromEntries(
     slices.map(({ day, days, logs, cardioLog, formChecks }) => [
       day,
       { days, logs, cardioLog, formChecks },
     ])
-  );
+  ) as Record<number, WorkoutDayPageSlice>;
+
+  return { byDay, activeProgram };
 }
 
 export async function getWeightHistory(userId: string): Promise<WeightEntry[]> {

@@ -11,11 +11,11 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense } from "react";
-import { CoachPageView } from "@/components/app-pages/CoachPageView";
-import { NutritionPageView } from "@/components/app-pages/NutritionPageView";
-import { ProfilePageView } from "@/components/app-pages/ProfilePageView";
-import { ProgressPageView } from "@/components/app-pages/ProgressPageView";
-import { WorkoutsPageView } from "@/components/app-pages/WorkoutsPageView";
+import { CoachPageView } from "@/app/(app)/coach/_components/CoachPageView";
+import { NutritionPageView } from "@/app/(app)/nutrition/_components/NutritionPageView";
+import { ProfilePageView } from "@/app/(app)/profile/_components/ProfilePageView";
+import { ProgressPageView } from "@/app/(app)/progress/_components/ProgressPageView";
+import { WorkoutsPageView } from "@/app/(app)/workouts/_components/WorkoutsPageView";
 import {
   isMainTabRoute,
   MAIN_TAB_ROUTES,

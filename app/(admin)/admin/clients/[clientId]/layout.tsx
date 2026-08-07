@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { AdminClientViewNav } from "@/components/admin/AdminClientViewNav";
+import { AdminClientViewNav } from "@/app/(admin)/admin/clients/[clientId]/_components/AdminClientViewNav";
 import { LanguageProvider } from "@/components/LanguageProvider";
 import { getAdminClientById } from "@/lib/data";
 

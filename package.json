@@ -7,7 +7,8 @@
     "dev:docker": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:exercises": "node scripts/seed-exercise-catalog.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

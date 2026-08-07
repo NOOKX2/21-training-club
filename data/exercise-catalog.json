@@ -1,0 +1,642 @@
+[
+  {
+    "id": "chest_001",
+    "name": "Barbell Bench Press",
+    "type": "chest",
+    "muscle_target": "Middle Chest",
+    "equipment": "Barbell, Flat Bench",
+    "difficulty": "Intermediate",
+    "description": "ท่าพื้นฐานหลักในการสร้างมวลกล้ามเนื้ออกส่วนกลางและแรงดัน",
+    "video": "https://www.youtube.com/watch?v=rT7DgCr-3pg"
+  },
+  {
+    "id": "chest_002",
+    "name": "Incline Dumbbell Press",
+    "type": "chest",
+    "muscle_target": "Upper Chest",
+    "equipment": "Dumbbells, Incline Bench",
+    "difficulty": "Intermediate",
+    "description": "เน้นกล้ามเนื้ออกส่วนบน ช่วยให้อกดูเต็มและสมส่วน",
+    "video": "https://www.youtube.com/watch?v=8iPEnn-ltC8"
+  },
+  {
+    "id": "chest_003",
+    "name": "Decline Barbell Bench Press",
+    "type": "chest",
+    "muscle_target": "Lower Chest",
+    "equipment": "Barbell, Decline Bench",
+    "difficulty": "Intermediate",
+    "description": "เน้นอกส่วนล่าง ช่วยสร้างขอบอกล่างให้ชัดเจน",
+    "video": "https://www.youtube.com/watch?v=LfyQBUKR8SE"
+  },
+  {
+    "id": "chest_004",
+    "name": "Chest Dip",
+    "type": "chest",
+    "muscle_target": "Lower Chest, Triceps",
+    "equipment": "Dip Station / Parallel Bars",
+    "difficulty": "Intermediate",
+    "description": "ใช้น้ำหนักตัวโดยก้มลำตัวไปข้างหน้าเล็กน้อยเพื่อเน้นอกส่วนล่าง",
+    "video": "https://www.youtube.com/watch?v=2z8JmcrW-As"
+  },
+  {
+    "id": "chest_005",
+    "name": "Dumbbell Flye",
+    "type": "chest",
+    "muscle_target": "Middle Chest",
+    "equipment": "Dumbbells, Flat Bench",
+    "difficulty": "Beginner",
+    "description": "เน้นการยืดและหดตัวของกล้ามเนื้ออก ช่วยโฟกัสการกางและบีบอก",
+    "video": "https://www.youtube.com/watch?v=eozbDDA7E3Y"
+  },
+  {
+    "id": "chest_006",
+    "name": "Incline Dumbbell Flye",
+    "type": "chest",
+    "muscle_target": "Upper Chest",
+    "equipment": "Dumbbells, Incline Bench",
+    "difficulty": "Beginner",
+    "description": "เน้นการยืดกล้ามเนื้ออกส่วนบน",
+    "video": "https://www.youtube.com/watch?v=bDaILMISciI"
+  },
+  {
+    "id": "chest_007",
+    "name": "Cable Crossover",
+    "type": "chest",
+    "muscle_target": "Inner & Lower Chest",
+    "equipment": "Cable Machine",
+    "difficulty": "Beginner",
+    "description": "ให้แรงต้านคงที่ตลอดระยะการเคลื่อนไหว ช่วยบีบอกส่วนใน",
+    "video": "https://www.youtube.com/watch?v=taI4XduLpTk"
+  },
+  {
+    "id": "chest_008",
+    "name": "Low to High Cable Flye",
+    "type": "chest",
+    "muscle_target": "Upper Chest",
+    "equipment": "Cable Machine",
+    "difficulty": "Beginner",
+    "description": "ดึงเคเบิลจากล่างขึ้นบน เน้นสร้างอกส่วนบนและร่องอก",
+    "video": "https://www.youtube.com/watch?v=A88y_4E_h-w"
+  },
+  {
+    "id": "chest_009",
+    "name": "Pec Deck Machine (Chest Fly Machine)",
+    "type": "chest",
+    "muscle_target": "Middle & Inner Chest",
+    "equipment": "Pec Deck Machine",
+    "difficulty": "Beginner",
+    "description": "เล่นง่าย ปลอดภัย เหมาะสำหรับมือใหม่ในการโฟกัสกล้ามเนื้ออก",
+    "video": "https://www.youtube.com/watch?v=Z57CtFmRMxA"
+  },
+  {
+    "id": "chest_010",
+    "name": "Push-up",
+    "type": "chest",
+    "muscle_target": "Full Chest, Core",
+    "equipment": "Bodyweight",
+    "difficulty": "Beginner",
+    "description": "ท่าวิดพื้นพื้นฐาน ใช้น้ำหนักตัว ทำได้ทุกที่โดยไม่ต้องใช้อุปกรณ์",
+    "video": "https://www.youtube.com/watch?v=IODxDxX7oi4"
+  },
+  {
+    "id": "chest_011",
+    "name": "Incline Push-up",
+    "type": "chest",
+    "muscle_target": "Lower Chest",
+    "equipment": "Bench or Elevated Surface",
+    "difficulty": "Beginner",
+    "description": "วางมือบนที่สูง ช่วยลดความยากและเน้นอกส่วนล่าง",
+    "video": "https://www.youtube.com/watch?v=3P80v5x_P-A"
+  },
+  {
+    "id": "chest_012",
+    "name": "Decline Push-up",
+    "type": "chest",
+    "muscle_target": "Upper Chest",
+    "equipment": "Bench or Elevated Surface",
+    "difficulty": "Intermediate",
+    "description": "วางเท้าบนที่สูง เพิ่มความยากและเน้นอกส่วนบน",
+    "video": "https://www.youtube.com/watch?v=SKPab2YC8BE"
+  },
+  {
+    "id": "chest_013",
+    "name": "Machine Chest Press",
+    "type": "chest",
+    "muscle_target": "Middle Chest",
+    "equipment": "Chest Press Machine",
+    "difficulty": "Beginner",
+    "description": "ท่ากดอกบนเครื่อง ปลอดภัยและควบคุมท่าง่าย เหมาะสำหรับมือใหม่และการโฟกัสกล้ามเนื้ออกส่วนกลาง",
+    "video": "https://www.youtube.com/watch?v=xUm0BiZCWlQ"
+  },
+  {
+    "id": "chest_014",
+    "name": "Incline Machine Chest Press",
+    "type": "chest",
+    "muscle_target": "Upper Chest",
+    "equipment": "Incline Chest Press Machine",
+    "difficulty": "Beginner",
+    "description": "กดอกบนเครื่องมุมเอียง เน้นสร้างอกส่วนบนและร่องอกให้ชัดเจน",
+    "video": "https://www.youtube.com/watch?v=ig0NyNlSce4"
+  },
+  {
+    "id": "chest_015",
+    "name": "Decline Machine Chest Press",
+    "type": "chest",
+    "muscle_target": "Lower Chest",
+    "equipment": "Decline Chest Press Machine",
+    "difficulty": "Beginner",
+    "description": "กดอกบนเครื่องมุมลาดลง เน้นอกส่วนล่างด้วยแรงต้านที่มั่นคงและปลอดภัย",
+    "video": "https://www.youtube.com/watch?v=1YrEp_Dh7fE"
+  },
+  {
+    "id": "back_001",
+    "name": "Barbell Deadlift",
+    "type": "back",
+    "muscle_target": "Erector Spinae, Lats, Upper Back",
+    "equipment": "Barbell",
+    "difficulty": "Advanced",
+    "description": "ท่าCompound ที่ช่วยสร้างความหนาและความแข็งแกร่งของหลังทั้งหมดรวมถึงลำตัว",
+    "video": "https://www.youtube.com/watch?v=op9kVnSso6Q"
+  },
+  {
+    "id": "back_002",
+    "name": "Pull-up",
+    "type": "back",
+    "muscle_target": "Lats (Latissimus Dorsi), Upper Back",
+    "equipment": "Pull-up Bar",
+    "difficulty": "Advanced",
+    "description": "การโหนบาร์สร้างความกว้างของปีกหลัง (Lats) โดยใช้น้ำหนักตัว",
+    "video": "https://www.youtube.com/watch?v=eGo4IYlbE5g"
+  },
+  {
+    "id": "back_003",
+    "name": "Lat Pulldown",
+    "type": "back",
+    "muscle_target": "Lats, Rhomboids",
+    "equipment": "Cable Machine",
+    "difficulty": "Beginner",
+    "description": "ดึงเคเบิลลงมาหาอก เหมาะสำหรับฝึกปีกหลังให้กว้าง คุมจังหวะได้ง่ายกว่า Pull-up",
+    "video": "https://www.youtube.com/watch?v=CAwf7n6Luuc"
+  },
+  {
+    "id": "back_004",
+    "name": "Barbell Bent-Over Row",
+    "type": "back",
+    "muscle_target": "Lats, Rhomboids, Middle Traps",
+    "equipment": "Barbell",
+    "difficulty": "Intermediate",
+    "description": "ก้มตัวดึงบาร์เบลเข้าหาเอว ช่วยเพิ่มความหนาของหลังส่วนกลางและปีก",
+    "video": "https://www.youtube.com/watch?v=FWJR5Ve8bnQ"
+  },
+  {
+    "id": "back_005",
+    "name": "Single-Arm Dumbbell Row",
+    "type": "back",
+    "muscle_target": "Lats, Upper Back",
+    "equipment": "Dumbbell, Flat Bench",
+    "difficulty": "Beginner",
+    "description": "ใช้ดัมเบลทีละข้างโดยชันเข่าบนเบนช์ ช่วยโฟกัสหลังทีละฝั่งและลดภาระหลังล่าง",
+    "video": "https://www.youtube.com/watch?v=pYcpY20QaE8"
+  },
+  {
+    "id": "back_006",
+    "name": "Seated Cable Row",
+    "type": "back",
+    "muscle_target": "Middle Back, Rhomboids, Lats",
+    "equipment": "Cable Machine",
+    "difficulty": "Beginner",
+    "description": "นั่งดึงเคเบิลขนานลำตัว เน้นความหนาของหลังส่วนกลางและการบีบสะบัก",
+    "video": "https://www.youtube.com/watch?v=GZbfZ033f74"
+  },
+  {
+    "id": "back_007",
+    "name": "T-Bar Row",
+    "type": "back",
+    "muscle_target": "Middle Back, Lats",
+    "equipment": "T-Bar Landmine / Machine",
+    "difficulty": "Intermediate",
+    "description": "เน้นเพิ่มความหนาของหลังส่วนกลางอย่างแม่นยำ จับได้มั่นคงและใส่น้ำหนักได้ดี",
+    "video": "https://www.youtube.com/watch?v=j3Igk5nyZE4"
+  },
+  {
+    "id": "back_008",
+    "name": "Straight-Arm Cable Pulldown",
+    "type": "back",
+    "muscle_target": "Lats",
+    "equipment": "Cable Machine",
+    "difficulty": "Beginner",
+    "description": "ยืนแขนตึงกดเคเบิลลง ช่วยแยกการทำงานของปีกหลัง (Lats) โดยไม่ใช้กล้ามเนื้อหน้าแขน",
+    "video": "https://www.youtube.com/watch?v=G9TBMjS_8Lg"
+  },
+  {
+    "id": "back_009",
+    "name": "Face Pull",
+    "type": "back",
+    "muscle_target": "Rear Delts, Upper Traps, Rotator Cuff",
+    "equipment": "Cable Machine, Rope Attachment",
+    "difficulty": "Beginner",
+    "description": "ดึงสายเชือกเข้าหาใบหน้า ช่วยสร้างกล้ามเนื้อหลังบน ปรับบุคลิกภาพ และสร้างความแข็งแรงให้หัวไหล่",
+    "video": "https://www.youtube.com/watch?v=V8dZ3pyiCBo"
+  },
+  {
+    "id": "back_010",
+    "name": "Hyperextension (Back Extension)",
+    "type": "back",
+    "muscle_target": "Erector Spinae (Lower Back)",
+    "equipment": "Roman Chair / Back Extension Bench",
+    "difficulty": "Beginner",
+    "description": "เน้นสร้างความแข็งแรงของกล้ามเนื้อหลังส่วนล่างเพื่อป้องกันอาการปวดหลัง",
+    "video": "https://www.youtube.com/watch?v=ph3pddpKzzw"
+  },
+  {
+    "id": "back_011",
+    "name": "Inverted Row",
+    "type": "back",
+    "muscle_target": "Upper Back, Lats, Core",
+    "equipment": "Smith Machine / Low Bar",
+    "difficulty": "Beginner",
+    "description": "ดึงตัวขึ้นหาบาร์ในท่านอนหงายเฉียง ใช้น้ำหนักตัว ฝึกง่ายสำหรับผู้เริ่มต้น",
+    "video": "https://www.youtube.com/watch?v=hXTc1mDnC5c"
+  },
+  {
+    "id": "back_012",
+    "name": "Chin-up",
+    "type": "back",
+    "muscle_target": "Lats, Biceps",
+    "equipment": "Pull-up Bar",
+    "difficulty": "Intermediate",
+    "description": "โหนบาร์แบบหงายมือ ดึงตัวขึ้นโดยเน้นปีกหลังและดึงแรงเสริมจากหน้าแขน",
+    "video": "https://www.youtube.com/watch?v=brhRXlOhsAM"
+  },
+  {
+    "id": "back_013",
+    "name": "Deadlift",
+    "type": "back",
+    "muscle_target": "Erector Spinae, Glutes, Hamstrings",
+    "equipment": "Barbell",
+    "difficulty": "Advanced",
+    "description": "ยกบาร์เบลจากพื้น ท่า compound หลักสำหรับสร้างความแข็งแรงหลัง สะโพก และต้นขา",
+    "video": "https://www.youtube.com/watch?v=ytGaGIn3SjE"
+  },
+  {
+    "id": "arm_001",
+    "name": "Barbell Biceps Curl",
+    "type": "arms",
+    "muscle_target": "Biceps (Short & Long Head)",
+    "equipment": "Barbell",
+    "difficulty": "Beginner",
+    "description": "ท่าพื้นฐานหลักในการสร้างมวลกล้ามเนื้อหน้าแขนโดยใช้บาร์เบล",
+    "video": "https://www.youtube.com/watch?v=kwG2ipFRgfo"
+  },
+  {
+    "id": "arm_002",
+    "name": "Dumbbell Alternate Biceps Curl",
+    "type": "arms",
+    "muscle_target": "Biceps",
+    "equipment": "Dumbbells",
+    "difficulty": "Beginner",
+    "description": "ยกดัมเบลสลับซ้าย-ขวา ช่วยหมุนข้อมือโฟกัสกล้ามเนื้อหน้าแขนทีละข้าง",
+    "video": "https://www.youtube.com/watch?v=sAq_ocpR_0w"
+  },
+  {
+    "id": "arm_003",
+    "name": "Dumbbell Hammer Curl",
+    "type": "arms",
+    "muscle_target": "Brachialis, Brachioradialis (Forearm)",
+    "equipment": "Dumbbells",
+    "difficulty": "Beginner",
+    "description": "จับดัมเบลตั้งฉาก (ท่าค้อน) ช่วยสร้างความหนาของแขนด้านข้างและปลายแขน",
+    "video": "https://www.youtube.com/watch?v=zC3YbRLGUIU"
+  },
+  {
+    "id": "arm_004",
+    "name": "Preacher Curl",
+    "type": "arms",
+    "muscle_target": "Biceps (Short Head)",
+    "equipment": "EZ-Bar / Dumbbell, Preacher Bench",
+    "difficulty": "Intermediate",
+    "description": "วางแขนบนเบนช์เฉพาะ ช่วยล็อกข้อศอกป้องกันการโกง ทำให้โฟกัสหน้าแขนได้เต็มที่",
+    "video": "https://www.youtube.com/watch?v=fIWP-FRFNU0"
+  },
+  {
+    "id": "arm_005",
+    "name": "Incline Dumbbell Curl",
+    "type": "arms",
+    "muscle_target": "Biceps (Long Head)",
+    "equipment": "Dumbbells, Incline Bench",
+    "difficulty": "Intermediate",
+    "description": "นั่งเอนเบนช์เล่น ช่วยยืดกล้ามเนื้อหน้าแขนส่วน Long Head ให้โฟกัสได้ลึกขึ้น",
+    "video": "https://www.youtube.com/watch?v=soxrZlIl35U"
+  },
+  {
+    "id": "arm_006",
+    "name": "Concentration Curl",
+    "type": "arms",
+    "muscle_target": "Biceps Peak",
+    "equipment": "Dumbbell",
+    "difficulty": "Beginner",
+    "description": "นั่งเอาศอกค้ำต้นขาด้านใน ยกโฟกัสเน้นย่อส่วนยอดของหน้าแขน (Biceps Peak)",
+    "video": "https://www.youtube.com/watch?v=0AUGkch3tzc"
+  },
+  {
+    "id": "arm_007",
+    "name": "Triceps Rope Pushdown",
+    "type": "arms",
+    "muscle_target": "Triceps (Lateral & Medial Head)",
+    "equipment": "Cable Machine, Rope Attachment",
+    "difficulty": "Beginner",
+    "description": "ดึงสายเชือกลงและกางออก ช่วยโฟกัสหลังแขนส่วนนอกให้แยกชัดเจน",
+    "video": "https://www.youtube.com/watch?v=vB5OHsJ3EME"
+  },
+  {
+    "id": "arm_008",
+    "name": "Skull Crusher (Lying Triceps Extension)",
+    "type": "arms",
+    "muscle_target": "Triceps (Long Head)",
+    "equipment": "EZ-Bar, Flat Bench",
+    "difficulty": "Intermediate",
+    "description": "ท่านอนงอข้อศอกหย่อนบาร์ลงหาหน้าผาก สร้างมวลหลังแขนส่วนบนได้เป็นอย่างดี",
+    "video": "https://www.youtube.com/watch?v=d_KZxkY_0aw"
+  },
+  {
+    "id": "arm_009",
+    "name": "Overhead Dumbbell Triceps Extension",
+    "type": "arms",
+    "muscle_target": "Triceps (Long Head)",
+    "equipment": "Dumbbell",
+    "difficulty": "Intermediate",
+    "description": "ชูดัมเบลข้ามหัวงอข้อศอกลงด้านหลัง ช่วยยืดและสร้างมวลกล้ามเนื้อหลังแขน",
+    "video": "https://www.youtube.com/watch?v=_gsUck-7M62"
+  },
+  {
+    "id": "arm_010",
+    "name": "Close-Grip Barbell Bench Press",
+    "type": "arms",
+    "muscle_target": "Triceps, Inner Chest",
+    "equipment": "Barbell, Flat Bench",
+    "difficulty": "Intermediate",
+    "description": "นอนดันบาร์เบลแบบจับแคบ ย้ายโฟกัสหลักจากหน้าอกมาที่กล้ามเนื้อหลังแขน",
+    "video": "https://www.youtube.com/watch?v=nEF0bv2fw94"
+  },
+  {
+    "id": "arm_011",
+    "name": "Triceps Dips (Bench Dips)",
+    "type": "arms",
+    "muscle_target": "Triceps",
+    "equipment": "Bench or Elevated Surface",
+    "difficulty": "Beginner",
+    "description": "ใช้น้ำหนักตัวย่อขอบเบนช์ เล่นง่าย ได้หลังแขนเต็มๆ ทำได้ทุกที่",
+    "video": "https://www.youtube.com/watch?v=c3ZGl4pAwZ4"
+  },
+  {
+    "id": "arm_012",
+    "name": "Barbell Wrist Curl",
+    "type": "arms",
+    "muscle_target": "Forearms (Flexors)",
+    "equipment": "Barbell, Flat Bench",
+    "difficulty": "Beginner",
+    "description": "วางแขนบนเบนช์แล้วกระดกข้อมือขึ้น เพื่อเสริมสร้างกล้ามเนื้อปลายแขนส่วนล่าง",
+    "video": "https://www.youtube.com/watch?v=34S1O47S9b4"
+  },
+  {
+    "id": "leg_001",
+    "name": "Barbell Back Squat",
+    "type": "legs",
+    "muscle_target": "Quadriceps, Glutes, Hamstrings",
+    "equipment": "Barbell, Squat Rack",
+    "difficulty": "Intermediate",
+    "description": "ราชาแห่งท่าเล่นขา ช่วยสร้างมวลกล้ามเนื้อและความแข็งแรงของต้นขาและสะโพกโดยรวม",
+    "video": "https://www.youtube.com/watch?v=ultWZbUMPL8"
+  },
+  {
+    "id": "leg_002",
+    "name": "Barbell Front Squat",
+    "type": "legs",
+    "muscle_target": "Quadriceps, Core",
+    "equipment": "Barbell, Squat Rack",
+    "difficulty": "Advanced",
+    "description": "วางบาร์เบลไว้ด้านหน้า ช่วยเน้นกล้ามเนื้อต้นขาด้านหน้า (Quads) และบังคับให้ลำตัวตั้งตรง",
+    "video": "https://www.youtube.com/watch?v=v-mQm_droHg"
+  },
+  {
+    "id": "leg_003",
+    "name": "Leg Press",
+    "type": "legs",
+    "muscle_target": "Quadriceps, Glutes, Hamstrings",
+    "equipment": "Leg Press Machine",
+    "difficulty": "Beginner",
+    "description": "ใช้เครื่องถีบน้ำหนัก ปลอดภัย ใส่น้ำหนักได้เยอะ โดยไม่ต้องกังวลเรื่องการทรงตัว",
+    "video": "https://www.youtube.com/watch?v=IZxyjW7MPJQ"
+  },
+  {
+    "id": "leg_004",
+    "name": "Romanian Deadlift (RDL)",
+    "type": "legs",
+    "muscle_target": "Hamstrings, Glutes, Lower Back",
+    "equipment": "Barbell or Dumbbells",
+    "difficulty": "Intermediate",
+    "description": "เน้นการยืดกล้ามเนื้อต้นขาด้านหลังและสะโพก ช่วยสร้างความหนาและทรงขาที่สวยงาม",
+    "video": "https://www.youtube.com/watch?v=JCXUYuzwNrM"
+  },
+  {
+    "id": "leg_005",
+    "name": "Dumbbell Bulgarian Split Squat",
+    "type": "legs",
+    "muscle_target": "Quadriceps, Glutes",
+    "equipment": "Dumbbells, Bench",
+    "difficulty": "Intermediate",
+    "description": "วางขาข้างหนึ่งไว้บนเบนช์แล้วย่อ ช่วยแก้ปัญหาความแข็งแรงที่ไม่เท่ากันของขาสองข้าง",
+    "video": "https://www.youtube.com/watch?v=2C-uNgKwPLE"
+  },
+  {
+    "id": "leg_006",
+    "name": "Walking Lunge",
+    "type": "legs",
+    "muscle_target": "Quadriceps, Glutes, Hamstrings",
+    "equipment": "Dumbbells or Bodyweight",
+    "difficulty": "Beginner",
+    "description": "ก้าวเดินย่อตัว เพิ่มความแข็งแรง ความยืดหยุ่น และการทรงตัวของขาและสะโพก",
+    "video": "https://www.youtube.com/watch?v=L8fvypPrzzs"
+  },
+  {
+    "id": "leg_007",
+    "name": "Leg Extension",
+    "type": "legs",
+    "muscle_target": "Quadriceps",
+    "equipment": "Leg Extension Machine",
+    "difficulty": "Beginner",
+    "description": "ท่าเหยียดขาโฟกัสกล้ามเนื้อต้นขาด้านหน้าแบบเจาะจง ช่วยสร้างหยดน้ำเหนือเข่า",
+    "video": "https://www.youtube.com/watch?v=YyvSfVjQeL0"
+  },
+  {
+    "id": "leg_008",
+    "name": "Lying Leg Curl",
+    "type": "legs",
+    "muscle_target": "Hamstrings",
+    "equipment": "Leg Curl Machine",
+    "difficulty": "Beginner",
+    "description": "ท่านอนพับขาเข้าหาลำตัว เพื่อแยกการทำงานของกล้ามเนื้อต้นขาด้านหลังโดยเฉพาะ",
+    "video": "https://www.youtube.com/watch?v=1Tq3QdYUuHs"
+  },
+  {
+    "id": "leg_009",
+    "name": "Barbell Hip Thrust",
+    "type": "legs",
+    "muscle_target": "Glutes, Hamstrings",
+    "equipment": "Barbell, Bench, Hip Pad",
+    "difficulty": "Intermediate",
+    "description": "พิงหลังบนเบนช์ดันบาร์เบลด้วยสะโพก ท่าที่ดีที่สุดในการสร้างและกระชับกล้ามเนื้อก้น",
+    "video": "https://www.youtube.com/watch?v=LM8XHLYJoYs"
+  },
+  {
+    "id": "leg_010",
+    "name": "Standing Calf Raise",
+    "type": "legs",
+    "muscle_target": "Calves (Gastrocnemius)",
+    "equipment": "Calf Raise Machine or Dumbbells",
+    "difficulty": "Beginner",
+    "description": "ยืนเขย่งปลายเท้า เสริมสร้างกล้ามเนื้อน่องให้แข็งแรงและดูสมส่วน",
+    "video": "https://www.youtube.com/watch?v=YMmgqO8Jo-k"
+  },
+  {
+    "id": "leg_011",
+    "name": "Seated Calf Raise",
+    "type": "legs",
+    "muscle_target": "Calves (Soleus)",
+    "equipment": "Seated Calf Raise Machine",
+    "difficulty": "Beginner",
+    "description": "นั่งเขย่งปลายเท้า โฟกัสกล้ามเนื้อน่องส่วนลึก (Soleus) ช่วยให้น่องดูหนาเต็มขึ้น",
+    "video": "https://www.youtube.com/watch?v=JbyjNymZOt0"
+  },
+  {
+    "id": "leg_012",
+    "name": "Goblet Squat",
+    "type": "legs",
+    "muscle_target": "Quadriceps, Glutes",
+    "equipment": "Kettlebell or Dumbbell",
+    "difficulty": "Beginner",
+    "description": "ถือดัมเบลแนบอกแล้วสควอท เหมาะสำหรับมือใหม่ในการฝึกฟอร์มสควอทให้ถูกต้อง",
+    "video": "https://www.youtube.com/watch?v=MeIiIdhvKL4"
+  },
+  {
+    "id": "sh_001",
+    "name": "Overhead Barbell Shoulder Press (OHP)",
+    "type": "shoulders",
+    "muscle_target": "Anterior & Lateral Deltoids",
+    "equipment": "Barbell",
+    "difficulty": "Intermediate",
+    "description": "ท่าดันบาร์เบลขึ้นเหนือศีรษะแบบยืน ท่าหลักในการสร้างพละกำลังและความหนาของหัวไหล่โดยรวม",
+    "video": "https://www.youtube.com/watch?v=2yjwXTZQDDI"
+  },
+  {
+    "id": "sh_002",
+    "name": "Seated Dumbbell Shoulder Press",
+    "type": "shoulders",
+    "muscle_target": "Anterior Deltoid",
+    "equipment": "Dumbbells, Bench with Backrest",
+    "difficulty": "Beginner",
+    "description": "นั่งดันดัมเบลขึ้นเหนือศีรษะ ช่วยเพิ่มระยะการเคลื่อนไหว (ROM) และโฟกัสไหล่หน้าได้อย่างปลอดภัย",
+    "video": "https://www.youtube.com/watch?v=qEwKCR5JCog"
+  },
+  {
+    "id": "sh_003",
+    "name": "Dumbbell Lateral Raise",
+    "type": "shoulders",
+    "muscle_target": "Lateral Deltoid",
+    "equipment": "Dumbbells",
+    "difficulty": "Beginner",
+    "description": "ท่ายางแขนออกด้านข้าง ท่าสำคัญอันดับหนึ่งในการสร้างความกว้างและทรงกลมของหัวไหล่",
+    "video": "https://www.youtube.com/watch?v=3VcKaXpzqRo"
+  },
+  {
+    "id": "sh_004",
+    "name": "Cable Lateral Raise",
+    "type": "shoulders",
+    "muscle_target": "Lateral Deltoid",
+    "equipment": "Cable Machine",
+    "difficulty": "Beginner",
+    "description": "กางแขนด้วยสายเคเบิล ให้แรงต้านคงที่ตลอดระยะการยืดและหดตัวของไหล่ข้าง",
+    "video": "https://www.youtube.com/watch?v=PPrzBWZDOhA"
+  },
+  {
+    "id": "sh_005",
+    "name": "Arnold Press",
+    "type": "shoulders",
+    "muscle_target": "Anterior & Lateral Deltoids",
+    "equipment": "Dumbbells, Bench with Backrest",
+    "difficulty": "Intermediate",
+    "description": "ท่าดันดัมเบลพร้อมหมุนข้อมือ ช่วยบริหารไหล่หน้าและไหล่ข้างไปพร้อมกันในท่าเดียว",
+    "video": "https://www.youtube.com/watch?v=6Z15_WdXmVw"
+  },
+  {
+    "id": "sh_006",
+    "name": "Dumbbell Front Raise",
+    "type": "shoulders",
+    "muscle_target": "Anterior Deltoid",
+    "equipment": "Dumbbells",
+    "difficulty": "Beginner",
+    "description": "ยกดัมเบลขึ้นด้านหน้าตรง แยกการทำงานของกล้ามเนื้อหัวไหล่ด้านหน้าโดยเฉพาะ",
+    "video": "https://www.youtube.com/watch?v=-t7fuZ0KhDA"
+  },
+  {
+    "id": "sh_007",
+    "name": "Reverse Dumbbell Flye (Bent-Over Lateral Raise)",
+    "type": "shoulders",
+    "muscle_target": "Posterior Deltoid",
+    "equipment": "Dumbbells",
+    "difficulty": "Beginner",
+    "description": "ก้มตัวกางแขนออกด้านข้าง โฟกัสหัวไหล่ด้านหลัง ช่วยให้ไหล่ดูทแยงสมบูรณ์แบบรอบทิศทาง",
+    "video": "https://www.youtube.com/watch?v=ttvfGg9d0A8"
+  },
+  {
+    "id": "sh_008",
+    "name": "Rear Delt Cable Flye",
+    "type": "shoulders",
+    "muscle_target": "Posterior Deltoid",
+    "equipment": "Cable Machine",
+    "difficulty": "Beginner",
+    "description": "ดึงสายเคเบิลไขว้ตัดหน้าลำตัว เน้นสร้างกล้ามเนื้อไหล่หลังด้วยแรงต้านที่สม่ำเสมอ",
+    "video": "https://www.youtube.com/watch?v=lP93pSCo3rI"
+  },
+  {
+    "id": "sh_009",
+    "name": "Barbell Upright Row",
+    "type": "shoulders",
+    "muscle_target": "Lateral Deltoid, Upper Traps",
+    "equipment": "Barbell / EZ-Bar",
+    "difficulty": "Intermediate",
+    "description": "ดึงบาร์ขึ้นชิดลำตัวถึงระดับอก ช่วยสร้างความหนาของไหล่ข้างและสะพานคอส่วนบน",
+    "video": "https://www.youtube.com/watch?v=amCU-ziHITM"
+  },
+  {
+    "id": "sh_010",
+    "name": "Barbell Shrug",
+    "type": "shoulders",
+    "muscle_target": "Upper Trapezius",
+    "equipment": "Barbell",
+    "difficulty": "Beginner",
+    "description": "ท่ายักไหล่ขึ้นตรงๆ เพื่อเสริมสร้างความหนาของกล้ามเนื้อสะพานคอ (Traps)",
+    "video": "https://www.youtube.com/watch?v=M2O8I3uL47Y"
+  },
+  {
+    "id": "sh_011",
+    "name": "Face Pull",
+    "type": "shoulders",
+    "muscle_target": "Posterior Deltoid, Rotator Cuff",
+    "equipment": "Cable Machine, Rope Attachment",
+    "difficulty": "Beginner",
+    "description": "ดึงเชือกเข้าหาใบหน้า ช่วยฝึกไหล่หลัง เสริมสร้างความมั่นคงของข้อต่อหัวไหล่",
+    "video": "https://www.youtube.com/watch?v=V8dZ3pyiCBo"
+  },
+  {
+    "id": "sh_012",
+    "name": "Pike Push-up",
+    "type": "shoulders",
+    "muscle_target": "Anterior Deltoid, Core",
+    "equipment": "Bodyweight",
+    "difficulty": "Intermediate",
+    "description": "ท่าวิดพื้นแบบโด่งสะโพกขึ้น ใช้น้ำหนักตัวถ่ายลงหัวไหล่ เหมาะสำหรับผู้ไม่มีอุปกรณ์",
+    "video": "https://www.youtube.com/watch?v=sposDXWEB0A"
+  }
+]

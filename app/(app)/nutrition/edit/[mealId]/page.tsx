@@ -1,4 +1,4 @@
-import { NutritionSubmitClient } from "@/components/NutritionSubmitClient";
+import { NutritionSubmitClient } from "@/app/(app)/nutrition/add/_components/NutritionSubmitClient";
 import { getMealById } from "@/lib/data";
 import { requireAppUser } from "@/lib/session";
 import { notFound, redirect } from "next/navigation";

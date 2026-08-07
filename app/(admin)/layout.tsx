@@ -1,4 +1,4 @@
-import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminShell } from "@/app/(admin)/admin/_components/AdminShell";
 import { buildAdminSwrFallback } from "@/lib/admin-swr-fallback";
 import { requireAdmin } from "@/lib/session";
 

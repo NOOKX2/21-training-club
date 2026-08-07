@@ -1,4 +1,5 @@
 import { MongoClient, Db } from "mongodb";
+import { dedupeAllWorkoutPrograms } from "./user-workout-program";
 
 const uri = process.env.MONGO_URL ?? "mongodb://localhost:27017";
 const dbName = process.env.DB_NAME ?? "test_database";
@@ -36,4 +37,9 @@ export async function ensureIndexes(): Promise<void> {
   await db
     .collection("password_reset_tokens")
     .createIndex("expires_at", { expireAfterSeconds: 0 });
+  await dedupeAllWorkoutPrograms(db);
+  await db.collection("user_workout_programs").createIndex({ user_id: 1, id: 1 }, { unique: true });
+  await db.collection("user_workout_programs").createIndex({ user_id: 1, status: 1 });
+  await db.collection("exercise_videos").createIndex({ id: 1 }, { unique: true });
+  await db.collection("exercise_videos").createIndex({ type: 1 });
 }

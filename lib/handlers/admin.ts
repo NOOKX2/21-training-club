@@ -22,6 +22,7 @@ import {
 import { respondExerciseVideoStream, respondFormCheckVideoStream } from "../video-stream-response";
 import { normalizeDateOnly, validateAccessDates, type Gender } from "../access";
 import { serializeCoach, type CoachDoc } from "../coach-utils";
+import { isExerciseCatalogType } from "../exercise-catalog-types";
 import { sendFormCheckFeedbackToChat } from "../form-check-utils";
 import { normalizeProgramCardio } from "../program-cardio";
 import type { ProgramExercise } from "../data";
@@ -322,12 +323,26 @@ export async function handleAdmin(
         video_url?: string;
         media_files?: Array<{ data_base64: string }>;
         tags?: string[];
+        type?: string;
       }>(req);
       if (!video.name?.trim()) return error("Exercise title is required", 400);
+      if (!video.type?.trim() || !isExerciseCatalogType(video.type.trim())) {
+        return error("Exercise type is required", 400);
+      }
+      const exerciseType = video.type.trim();
+      const trimmedVideoUrl = video.video_url?.trim() ?? "";
+      if (trimmedVideoUrl) {
+        try {
+          new URL(trimmedVideoUrl);
+        } catch {
+          return error("Invalid video URL", 400);
+        }
+      }
 
       const uploads =
         video.media_files?.filter((file) => file.data_base64?.trim()) ?? [];
-      if (uploads.length > MAX_EXERCISE_MEDIA_FILES) {
+      const urlSlots = trimmedVideoUrl ? 1 : 0;
+      if (uploads.length + urlSlots > MAX_EXERCISE_MEDIA_FILES) {
         return error(`Maximum ${MAX_EXERCISE_MEDIA_FILES} files per exercise`, 400);
       }
 
@@ -335,8 +350,9 @@ export async function handleAdmin(
       const doc: Record<string, unknown> = {
         id,
         name: video.name.trim(),
-        video_url: video.video_url ?? "",
-        tags: video.tags ?? [],
+        video_url: trimmedVideoUrl,
+        type: exerciseType,
+        tags: [exerciseType],
         created_at: new Date().toISOString(),
         media_items: [] as ExerciseMediaStored[],
       };
@@ -385,16 +401,16 @@ export async function handleAdmin(
         }
       }
 
+      if (trimmedVideoUrl) {
+        mediaItems.push({
+          id: uuidv4(),
+          type: "video",
+          video_url: trimmedVideoUrl,
+        });
+      }
+
       if (mediaItems.length > 0) {
         doc.media_items = mediaItems;
-      } else if (video.video_url) {
-        doc.media_items = [
-          {
-            id: uuidv4(),
-            type: "video",
-            video_url: video.video_url,
-          },
-        ];
       }
 
       await db.collection("exercise_videos").insertOne(doc);
@@ -415,6 +431,8 @@ export async function handleAdmin(
       const body = await parseBody<{
         name?: string;
         tags?: string[];
+        type?: string;
+        video_url?: string;
         remove_media_ids?: string[];
         add_media_files?: Array<{ data_base64: string }>;
       }>(req);
@@ -427,7 +445,14 @@ export async function handleAdmin(
         if (!trimmed) return error("Exercise title is required", 400);
         update.name = trimmed;
       }
-      if (body.tags !== undefined) {
+      if (body.type !== undefined) {
+        const trimmedType = body.type.trim();
+        if (!trimmedType || !isExerciseCatalogType(trimmedType)) {
+          return error("Exercise type is required", 400);
+        }
+        update.type = trimmedType;
+        update.tags = [trimmedType];
+      } else if (body.tags !== undefined) {
         update.tags = body.tags
           .map((tag) => tag.trim())
           .filter(Boolean);
@@ -516,6 +541,54 @@ export async function handleAdmin(
         }
       }
 
+      if (body.video_url !== undefined) {
+        const trimmedUrl = body.video_url.trim();
+        if (trimmedUrl) {
+          try {
+            new URL(trimmedUrl);
+          } catch {
+            return error("Invalid video URL", 400);
+          }
+        }
+
+        let mediaItems = (update.media_items as ExerciseMediaStored[] | undefined)
+          ?? getStoredExerciseMediaItems(
+            existing as {
+              media_items?: ExerciseMediaStored[];
+              video_url?: string;
+              video_file_id?: string;
+            }
+          );
+
+        mediaItems = mediaItems.filter((item) => item.file_id);
+        if (trimmedUrl) {
+          if (mediaItems.length + 1 > MAX_EXERCISE_MEDIA_FILES) {
+            return error(
+              `Maximum ${MAX_EXERCISE_MEDIA_FILES} files per exercise`,
+              400
+            );
+          }
+          mediaItems.push({
+            id: uuidv4(),
+            type: "video",
+            video_url: trimmedUrl,
+          });
+          update.video_url = trimmedUrl;
+        } else {
+          update.video_url = "";
+        }
+
+        update.media_items = mediaItems;
+        const firstUploadedVideo = mediaItems.find(
+          (item) => item.type === "video" && item.file_id
+        );
+        update.video_file_id = firstUploadedVideo?.file_id ?? "";
+        update.content_type = firstUploadedVideo?.content_type ?? "";
+        if (!firstUploadedVideo) {
+          update.file_size = 0;
+        }
+      }
+
       if (Object.keys(update).length === 1) {
         return error("No updates provided", 400);
       }
@@ -537,6 +610,40 @@ export async function handleAdmin(
         { projection: { _id: 0, video_base64: 0 } }
       );
       return json(updated);
+    }
+
+    if (
+      resource === "exercise-videos" &&
+      segments[2] &&
+      !segments[3] &&
+      req.method === "DELETE"
+    ) {
+      const videoId = segments[2];
+      const existing = await db.collection("exercise_videos").findOne({ id: videoId });
+      if (!existing) return error("Video not found", 404);
+
+      const mediaItems = getStoredExerciseMediaItems(
+        existing as {
+          media_items?: ExerciseMediaStored[];
+          video_url?: string;
+          video_file_id?: string;
+        }
+      );
+      const fileIds = new Set<string>();
+      for (const item of mediaItems) {
+        if (item.file_id) fileIds.add(item.file_id);
+      }
+      if (existing.video_file_id) {
+        fileIds.add(String(existing.video_file_id));
+      }
+
+      await Promise.all(
+        [...fileIds].map((fileId) =>
+          deleteExerciseVideoFromGridFS(db, fileId).catch(() => undefined)
+        )
+      );
+      await db.collection("exercise_videos").deleteOne({ id: videoId });
+      return json({ ok: true, id: videoId });
     }
 
     if (

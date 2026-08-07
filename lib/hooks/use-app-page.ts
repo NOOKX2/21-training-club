@@ -41,6 +41,10 @@ export type WorkoutWeekPageData = {
   week: number;
   defaultDay: number;
   byDay: Record<number, WorkoutDayPageSlice>;
+  activeProgram: {
+    id: string;
+    name: string;
+  } | null;
 };
 
 export type NutritionPageData = {

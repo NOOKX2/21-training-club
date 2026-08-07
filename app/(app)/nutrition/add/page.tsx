@@ -1,4 +1,4 @@
-import { NutritionSubmitClient } from "@/components/NutritionSubmitClient";
+import { NutritionSubmitClient } from "@/app/(app)/nutrition/add/_components/NutritionSubmitClient";
 import { parsePastOrTodayDateKey } from "@/lib/date-utils";
 import { requireAppUser } from "@/lib/session";
 
