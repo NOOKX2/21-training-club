@@ -43,10 +43,13 @@ export function dayHasSavedProgram(days: UserWorkoutDayDoc[], day: number): bool
   return Boolean(dayDoc.rest_day) || (dayDoc.exercises?.length ?? 0) > 0;
 }
 
-function initialEditingByDay(days: UserWorkoutDayDoc[]): Record<number, boolean> {
+function initialEditingByDay(
+  days: UserWorkoutDayDoc[],
+  startInEditMode: boolean
+): Record<number, boolean> {
   const editing: Record<number, boolean> = {};
   for (let day = 1; day <= 7; day++) {
-    editing[day] = !dayHasSavedProgram(days, day);
+    editing[day] = startInEditMode || !dayHasSavedProgram(days, day);
   }
   return editing;
 }
@@ -67,6 +70,7 @@ export function useWorkoutProgramEditor({
   initialProgramName,
   initialDays,
   initialVideos,
+  startInEditMode = false,
   t,
 }: {
   programId: string;
@@ -74,6 +78,7 @@ export function useWorkoutProgramEditor({
   initialProgramName: string;
   initialDays: UserWorkoutDayDoc[];
   initialVideos: ExerciseVideoOption[];
+  startInEditMode?: boolean;
   t: (key: string) => string;
 }) {
   const router = useRouter();
@@ -87,7 +92,9 @@ export function useWorkoutProgramEditor({
   const [savedProgramName, setSavedProgramName] = useState(initialProgramName);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [saving, setSaving] = useState(false);
-  const [editingByDay, setEditingByDay] = useState(() => initialEditingByDay(initialDays));
+  const [editingByDay, setEditingByDay] = useState(() =>
+    initialEditingByDay(initialDays, startInEditMode)
+  );
   const [createExerciseOpen, setCreateExerciseOpen] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState("");
   const [creatingExercise, setCreatingExercise] = useState(false);
@@ -161,11 +168,15 @@ export function useWorkoutProgramEditor({
 
   const selectDay = useCallback((day: number) => {
     setEditDay(day);
-    replaceAppUrl("/workouts/program/edit", { program: programId, day });
+    replaceAppUrl("/workouts/program/edit", {
+      program: programId,
+      day,
+      mode: startInEditMode || editingByDay[day] ? "edit" : undefined,
+    });
     setFeedback(emptyFeedback);
     setCreateExerciseOpen(false);
     setNewExerciseName("");
-  }, [programId]);
+  }, [editingByDay, programId, startInEditMode]);
 
   const startEditing = useCallback(() => {
     setEditingByDay((current) => ({ ...current, [editDay]: true }));

@@ -10,17 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Suspense } from "react";
-import { CoachPageView } from "@/app/(app)/coach/_components/CoachPageView";
-import { NutritionPageView } from "@/app/(app)/nutrition/_components/NutritionPageView";
-import { ProfilePageView } from "@/app/(app)/profile/_components/ProfilePageView";
-import { ProgressPageView } from "@/app/(app)/progress/_components/ProgressPageView";
-import { WorkoutsPageView } from "@/app/(app)/workouts/_components/WorkoutsPageView";
-import {
-  isMainTabRoute,
-  MAIN_TAB_ROUTES,
-  type MainTabRoute,
-} from "@/lib/main-tabs";
+import { isMainTabRoute } from "@/lib/main-tabs";
 
 type MainTabNavContextValue = {
   activePath: string;
@@ -142,77 +132,6 @@ export function MainTabLink({
   );
 }
 
-function MainTabPanel({
-  active,
-  mounted,
-  children,
-}: {
-  active: boolean;
-  mounted: boolean;
-  children: ReactNode;
-}) {
-  if (!mounted || !active) return null;
-  return <div>{children}</div>;
-}
-
-function tabView(route: MainTabRoute) {
-  switch (route) {
-    case "/workouts":
-      return (
-        <Suspense fallback={null}>
-          <WorkoutsPageView />
-        </Suspense>
-      );
-    case "/nutrition":
-      return (
-        <Suspense fallback={null}>
-          <NutritionPageView />
-        </Suspense>
-      );
-    case "/progress":
-      return <ProgressPageView />;
-    case "/coach":
-      return (
-        <Suspense fallback={null}>
-          <CoachPageView />
-        </Suspense>
-      );
-    case "/profile":
-      return <ProfilePageView />;
-  }
-}
-
 export function MainTabContent({ children }: { children: ReactNode }) {
-  const { activePath } = useMainTabNav();
-  const [mountedTabs, setMountedTabs] = useState<Set<MainTabRoute>>(() =>
-    isMainTabRoute(activePath) ? new Set([activePath]) : new Set()
-  );
-
-  useEffect(() => {
-    if (!isMainTabRoute(activePath)) return;
-    setMountedTabs((current) => {
-      if (current.has(activePath)) return current;
-      const next = new Set(current);
-      next.add(activePath);
-      return next;
-    });
-  }, [activePath]);
-
-  if (!isMainTabRoute(activePath)) {
-    return children;
-  }
-
-  return (
-    <>
-      {MAIN_TAB_ROUTES.map((route) => (
-        <MainTabPanel
-          key={route}
-          active={activePath === route}
-          mounted={mountedTabs.has(route)}
-        >
-          {tabView(route)}
-        </MainTabPanel>
-      ))}
-    </>
-  );
+  return <>{children}</>;
 }

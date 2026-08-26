@@ -39,6 +39,7 @@ export type WorkoutsPageData = {
 export type WorkoutWeekPageData = {
   userId: string;
   week: number;
+  maxLoggedWeek?: number;
   defaultDay: number;
   byDay: Record<number, WorkoutDayPageSlice>;
   activeProgram: {
@@ -101,8 +102,12 @@ export function resolveWorkoutWeekData(
   return undefined;
 }
 
-export function useWorkoutWeek(week: number) {
-  return useSWR<WorkoutWeekPageData>(workoutWeekKey(week), fetcher, swrOptions);
+export function useWorkoutWeek(week: number | null) {
+  return useSWR<WorkoutWeekPageData>(
+    week != null && week > 0 ? workoutWeekKey(week) : null,
+    fetcher,
+    swrOptions
+  );
 }
 
 /** @deprecated use useWorkoutWeek — kept for compatibility */

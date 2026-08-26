@@ -10,22 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Suspense } from "react";
-import { AdminChatPageView } from "@/app/(admin)/admin/chat/_components/AdminChatPageView";
-import { AdminClientsPageView } from "@/app/(admin)/admin/clients/_components/AdminClientsPageView";
-import { AdminCustomProgramsPageView } from "@/app/(admin)/admin/custom-programs/_components/AdminCustomProgramsPageView";
-import { AdminDashboardPageView } from "@/app/(admin)/admin/_components/AdminDashboardPageView";
-import { AdminFormChecksPageView } from "@/app/(admin)/admin/form-checks/_components/AdminFormChecksPageView";
-import { AdminNutritionPageView } from "@/app/(admin)/admin/nutrition/_components/AdminNutritionPageView";
-import { AdminProgramsPageView } from "@/app/(admin)/admin/programs/_components/AdminProgramsPageView";
-import { AdminResultsPageView } from "@/app/(admin)/admin/results/_components/AdminResultsPageView";
-import { AdminVideosPageView } from "@/app/(admin)/admin/videos/_components/AdminVideosPageView";
-import { AdminWeightVerificationPageView } from "@/app/(admin)/admin/weight-verification/_components/AdminWeightVerificationPageView";
-import {
-  ADMIN_TAB_ROUTES,
-  isAdminTabRoute,
-  type AdminTabRoute,
-} from "@/lib/admin-tabs";
+import { isAdminTabRoute } from "@/lib/admin-tabs";
 
 type AdminTabNavContextValue = {
   activePath: string;
@@ -148,95 +133,6 @@ export function AdminTabLink({
   );
 }
 
-function AdminTabPanel({
-  active,
-  mounted,
-  children,
-}: {
-  active: boolean;
-  mounted: boolean;
-  children: ReactNode;
-}) {
-  if (!mounted || !active) return null;
-  return <div>{children}</div>;
-}
-
-function tabView(route: AdminTabRoute) {
-  switch (route) {
-    case "/admin":
-      return <AdminDashboardPageView />;
-    case "/admin/clients":
-      return <AdminClientsPageView />;
-    case "/admin/chat":
-      return (
-        <Suspense fallback={null}>
-          <AdminChatPageView />
-        </Suspense>
-      );
-    case "/admin/programs":
-      return (
-        <Suspense fallback={null}>
-          <AdminProgramsPageView />
-        </Suspense>
-      );
-    case "/admin/custom-programs":
-      return (
-        <Suspense fallback={null}>
-          <AdminCustomProgramsPageView />
-        </Suspense>
-      );
-    case "/admin/results":
-      return (
-        <Suspense fallback={null}>
-          <AdminResultsPageView />
-        </Suspense>
-      );
-    case "/admin/weight-verification":
-      return <AdminWeightVerificationPageView />;
-    case "/admin/videos":
-      return <AdminVideosPageView />;
-    case "/admin/nutrition":
-      return (
-        <Suspense fallback={null}>
-          <AdminNutritionPageView />
-        </Suspense>
-      );
-    case "/admin/form-checks":
-      return <AdminFormChecksPageView />;
-  }
-}
-
 export function AdminTabContent({ children }: { children: ReactNode }) {
-  const { activePath } = useAdminTabNav();
-  const [mountedTabs, setMountedTabs] = useState<Set<AdminTabRoute>>(() =>
-    isAdminTabRoute(activePath) ? new Set([activePath]) : new Set()
-  );
-
-  useEffect(() => {
-    if (!isAdminTabRoute(activePath)) return;
-    setMountedTabs((current) => {
-      if (current.has(activePath)) return current;
-      const next = new Set(current);
-      next.add(activePath);
-      return next;
-    });
-  }, [activePath]);
-
-  if (!isAdminTabRoute(activePath)) {
-    return children;
-  }
-
-  return (
-    <>
-      {ADMIN_TAB_ROUTES.map((route) => (
-        <AdminTabPanel
-          key={route}
-          active={activePath === route}
-          mounted={mountedTabs.has(route)}
-        >
-          {tabView(route)}
-        </AdminTabPanel>
-      ))}
-    </>
-  );
+  return <>{children}</>;
 }

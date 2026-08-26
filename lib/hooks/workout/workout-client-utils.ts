@@ -88,3 +88,13 @@ export function countCompletedSets(completedSets: Record<string, boolean[]>) {
     0
   );
 }
+
+export function bestWeightFromLog(log?: ExerciseLogState): string | null {
+  if (!log) return null;
+  const values = [
+    ...(log.sets ?? []).map((set) => Number(set.weight)),
+    Number(log.actual_weight),
+  ].filter((value) => Number.isFinite(value) && value > 0);
+  if (!values.length) return null;
+  return String(Math.max(...values));
+}

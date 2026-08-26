@@ -7,12 +7,13 @@ import {
   getNutritionLimits,
   getNutritionScoreTrend,
   getProgressPageData,
+  getUserMaxWorkoutLogWeek,
   getUserProfilePhotoUrl,
   getUserTdee,
   getWeeklyReports,
   getWorkoutWeekPageData,
 } from "../data";
-import { CLIENT_WORKOUT_LOG_WEEK } from "../app-page-keys";
+import { parseWorkoutLogWeek } from "../app-page-keys";
 import { localDateKey } from "../date-utils";
 import { getCurrentUser } from "../auth";
 import { json, error, handleAuthError } from "../api-helpers";
@@ -42,12 +43,11 @@ export async function handleAppPages(
 
     if (page === "workouts") {
       const params = req.nextUrl.searchParams;
-      const week = CLIENT_WORKOUT_LOG_WEEK;
-      const { byDay, activeProgram } = await getWorkoutWeekPageData(
-        user.id,
-        user.email,
-        week
-      );
+      const week = parseWorkoutLogWeek(params.get("week"));
+      const [{ byDay, activeProgram }, maxLoggedWeek] = await Promise.all([
+        getWorkoutWeekPageData(user.id, user.email, week),
+        getUserMaxWorkoutLogWeek(user.id),
+      ]);
       const defaultDay = params.has("day")
         ? Math.min(7, Math.max(1, parseInt(params.get("day") ?? "1", 10) || 1))
         : getProgramWeekDay(resolveProgramStartDate(user)).day;
@@ -55,6 +55,7 @@ export async function handleAppPages(
       return json({
         userId: user.id,
         week,
+        maxLoggedWeek,
         defaultDay,
         byDay,
         activeProgram,

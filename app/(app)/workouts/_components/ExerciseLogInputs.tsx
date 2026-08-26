@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import type { ExerciseLogState } from "@/app/(app)/workouts/_components/types";
 import { StepperInput } from "@/components/StepperInput";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -45,18 +45,35 @@ export function ExerciseLogInputs({
   onUpdateSet,
   onToggleSetComplete,
   onAddSet,
+  onRemoveSet,
 }: {
   log?: ExerciseLogState;
   completedSets: boolean[];
   onUpdateSet: (setIndex: number, field: "weight" | "reps", value: string) => void;
   onToggleSetComplete: (setIndex: number) => void;
   onAddSet: () => void;
+  onRemoveSet: (setIndex: number) => void;
 }) {
   const { t } = useLanguage();
   const sets = log?.sets ?? [];
+  const canRemove = sets.length > 1;
 
   return (
     <div className="space-y-2.5">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <span className="w-4 shrink-0 text-center text-[10px] font-bold uppercase tracking-wide text-white/40">
+          {t("common.set")}
+        </span>
+        <span className="min-w-0 flex-1 px-1 text-[10px] font-bold uppercase tracking-wide text-white/40">
+          {t("common.weight")}
+        </span>
+        <span className="min-w-0 flex-1 px-1 text-[10px] font-bold uppercase tracking-wide text-white/40">
+          {t("common.reps")}
+        </span>
+        <span className="w-10 shrink-0" aria-hidden />
+        {canRemove ? <span className="w-8 shrink-0" aria-hidden /> : null}
+      </div>
+
       {sets.map((set, setIndex) => {
         const complete = completedSets[setIndex] ?? false;
         return (
@@ -93,6 +110,16 @@ export function ExerciseLogInputs({
             >
               <Check className="h-4 w-4" strokeWidth={2.5} />
             </button>
+            {canRemove ? (
+              <button
+                type="button"
+                onClick={() => onRemoveSet(setIndex)}
+                className="flex h-10 w-8 shrink-0 items-center justify-center rounded-lg text-white/35 transition-colors hover:bg-red-400/10 hover:text-red-400"
+                aria-label={`${t("common.delete")} ${t("common.set")} ${setIndex + 1}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
         );
       })}

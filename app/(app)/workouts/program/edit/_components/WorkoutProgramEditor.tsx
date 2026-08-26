@@ -25,12 +25,14 @@ export function WorkoutProgramEditor({
   returnDay,
   initialDays,
   initialVideos,
+  startInEditMode = false,
 }: {
   programId: string;
   programName: string;
   returnDay: number;
   initialDays: UserWorkoutDayDoc[];
   initialVideos: ExerciseVideoOption[];
+  startInEditMode?: boolean;
 }) {
   const { t } = useLanguage();
   const editor = useWorkoutProgramEditor({
@@ -39,6 +41,7 @@ export function WorkoutProgramEditor({
     initialProgramName: programName,
     initialDays,
     initialVideos,
+    startInEditMode,
     t,
   });
   const returnHref = `/workouts/program`;
@@ -179,17 +182,6 @@ export function WorkoutProgramEditor({
               </Button>
             ) : null}
 
-            {editor.isEditing && editor.dayIsSaved ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 flex-1 border-white/15 text-white/70 hover:bg-white/10 sm:flex-none sm:px-6"
-                onClick={editor.cancelEditing}
-              >
-                {t("profile.cancel")}
-              </Button>
-            ) : null}
-
             <Button
               type="button"
               variant="save"
@@ -218,15 +210,6 @@ export function WorkoutProgramEditor({
         {editor.feedback.message ? (
           <p className="text-sm text-[#A8C5DC]">{editor.feedback.message}</p>
         ) : null}
-
-        <div className="flex justify-center pt-2">
-          <Link
-            href={returnHref}
-            className="text-sm text-white/45 transition-colors hover:text-white"
-          >
-            {t("workouts.backToProgramList")}
-          </Link>
-        </div>
       </div>
     </div>
   );

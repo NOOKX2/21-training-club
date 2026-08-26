@@ -2,8 +2,13 @@ import { v4 as uuidv4 } from "uuid";
 import { normalizeProgramCardio, type ProgramCardio } from "@/lib/program-cardio";
 import {
   getActiveWorkoutDayForUser,
+  getActiveWorkoutProgram,
   getActiveWorkoutProgramInfo,
 } from "@/lib/user-workout-program";
+import {
+  CLIENT_WORKOUT_LOG_WEEK,
+  MAX_WORKOUT_LOG_WEEK,
+} from "@/lib/app-page-keys";
 import { resolveProgramDayRestDay } from "@/lib/workout-program-shared";
 import { ObjectId } from "mongodb";
 import { normalizeDateOnly } from "./access";
@@ -670,6 +675,27 @@ export type WorkoutDayPageSlice = {
   formChecks: FormCheckSubmission[];
 };
 
+export async function getUserMaxWorkoutLogWeek(userId: string): Promise<number> {
+  const db = await getDb();
+  const [log, cardio] = await Promise.all([
+    db
+      .collection("workout_logs")
+      .find({ user_id: userId })
+      .project({ week: 1 })
+      .sort({ week: -1 })
+      .limit(1)
+      .next(),
+    db
+      .collection("cardio_logs")
+      .find({ user_id: userId })
+      .project({ week: 1 })
+      .sort({ week: -1 })
+      .limit(1)
+      .next(),
+  ]);
+  return Math.max(1, Number(log?.week) || 1, Number(cardio?.week) || 1);
+}
+
 export async function getWorkoutWeekPageData(
   userId: string,
   userEmail: string,
@@ -1288,6 +1314,167 @@ export async function getClientWorkoutLogs(
     });
   }
   return [...latestByExercise.values()];
+}
+
+export type WorkoutWeekCompareEntry = {
+  week: number;
+  bestWeight: number | null;
+};
+
+export type WorkoutWeekCompareRow = {
+  exerciseId: string;
+  exerciseName: string;
+  weeks: WorkoutWeekCompareEntry[];
+  firstWeight: number | null;
+  latestWeight: number | null;
+  changeKg: number | null;
+};
+
+export type WorkoutWeekCompareData = {
+  day: number;
+  programName: string | null;
+  restDay: boolean;
+  weeks: number[];
+  rows: WorkoutWeekCompareRow[];
+};
+
+function bestWeightFromLogDoc(log: {
+  actual_weight?: unknown;
+  sets?: unknown;
+}): number | null {
+  const values: number[] = [];
+  const actual = Number(log.actual_weight);
+  if (Number.isFinite(actual) && actual > 0) values.push(actual);
+  if (Array.isArray(log.sets)) {
+    for (const set of log.sets as Array<{ weight?: unknown }>) {
+      const weight = Number(set.weight);
+      if (Number.isFinite(weight) && weight > 0) values.push(weight);
+    }
+  }
+  if (!values.length) return null;
+  return Math.max(...values);
+}
+
+function normalizeExerciseName(name: string) {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export async function getWorkoutWeekComparison(
+  userId: string,
+  day = 1
+): Promise<WorkoutWeekCompareData> {
+  const selectedDay = Math.min(7, Math.max(1, day));
+  const db = await getDb();
+  const [logs, activeProgram, maxLoggedWeek] = await Promise.all([
+    db
+      .collection("workout_logs")
+      .find({ user_id: userId, day: selectedDay })
+      .project({
+        _id: 0,
+        exercise_id: 1,
+        exercise_name: 1,
+        week: 1,
+        day: 1,
+        actual_weight: 1,
+        sets: 1,
+      })
+      .toArray(),
+    getActiveWorkoutProgram(db, userId),
+    getUserMaxWorkoutLogWeek(userId),
+  ]);
+
+  const programDay = activeProgram?.days.find((entry) => entry.day === selectedDay);
+  const programExercises = programDay?.rest_day ? [] : (programDay?.exercises ?? []);
+  const restDay = Boolean(programDay?.rest_day) || programExercises.length === 0;
+
+  const weekSet = new Set<number>();
+  for (const log of logs) {
+    const week = Number(log.week);
+    if (Number.isFinite(week) && week >= 1) weekSet.add(week);
+  }
+  const maxWeek = Math.max(1, maxLoggedWeek, ...weekSet, CLIENT_WORKOUT_LOG_WEEK);
+  const weeks = Array.from({ length: Math.min(MAX_WORKOUT_LOG_WEEK, maxWeek) }, (_, i) => i + 1);
+
+  if (!activeProgram || restDay || !programExercises.length) {
+    return {
+      day: selectedDay,
+      programName: activeProgram?.name?.trim() || null,
+      restDay: true,
+      weeks,
+      rows: [],
+    };
+  }
+
+  const bestByExerciseWeek = new Map<string, Map<number, number>>();
+
+  for (const exercise of programExercises) {
+    bestByExerciseWeek.set(String(exercise.id), new Map());
+  }
+
+  const exerciseById = new Map(
+    programExercises.map((exercise) => [String(exercise.id), exercise])
+  );
+  const exerciseByName = new Map(
+    programExercises.map((exercise) => [
+      normalizeExerciseName(String(exercise.name ?? "")),
+      exercise,
+    ])
+  );
+
+  for (const log of logs) {
+    const week = Number(log.week);
+    if (!Number.isFinite(week) || week < 1) continue;
+    const best = bestWeightFromLogDoc(log);
+    if (best == null) continue;
+
+    const byId = exerciseById.get(String(log.exercise_id ?? ""));
+    const byName = exerciseByName.get(
+      normalizeExerciseName(String(log.exercise_name ?? ""))
+    );
+    const exercise = byId ?? byName;
+    if (!exercise) continue;
+
+    const exerciseId = String(exercise.id);
+    const byWeek = bestByExerciseWeek.get(exerciseId) ?? new Map<number, number>();
+    const current = byWeek.get(week);
+    byWeek.set(week, current == null ? best : Math.max(current, best));
+    bestByExerciseWeek.set(exerciseId, byWeek);
+  }
+
+  const rows: WorkoutWeekCompareRow[] = programExercises.map((exercise) => {
+    const exerciseId = String(exercise.id);
+    const byWeek = bestByExerciseWeek.get(exerciseId) ?? new Map<number, number>();
+    const weekEntries = weeks.map((week) => ({
+      week,
+      bestWeight: byWeek.get(week) ?? null,
+    }));
+    const recorded = weekEntries
+      .map((entry) => entry.bestWeight)
+      .filter((value): value is number => value != null);
+    const firstWeight = recorded[0] ?? null;
+    const latestWeight = recorded[recorded.length - 1] ?? null;
+    const changeKg =
+      firstWeight != null && latestWeight != null
+        ? Number((latestWeight - firstWeight).toFixed(1))
+        : null;
+
+    return {
+      exerciseId,
+      exerciseName: String(exercise.name ?? "").trim() || "Unknown exercise",
+      weeks: weekEntries,
+      firstWeight,
+      latestWeight,
+      changeKg,
+    };
+  });
+
+  return {
+    day: selectedDay,
+    programName: activeProgram.name?.trim() || null,
+    restDay: false,
+    weeks,
+    rows,
+  };
 }
 
 export async function getNutritionMealsForUser(

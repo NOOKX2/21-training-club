@@ -152,7 +152,7 @@ export function buildWorkoutProgramListItems(programs: UserWorkoutProgram[]): Wo
             : "empty"
           : "template",
       ],
-      editHref: `/workouts/program/edit?program=${program.id}&day=1`,
+      editHref: `/workouts/program/edit?program=${program.id}&day=1&mode=edit`,
       viewHref: `/workouts/program/edit?program=${program.id}&day=1`,
     };
   });

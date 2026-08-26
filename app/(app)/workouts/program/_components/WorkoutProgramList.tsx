@@ -47,7 +47,7 @@ export function WorkoutProgramList({
         subtitle={t("workouts.programListSubtitle")}
         className="mb-8"
         actions={
-          <Link href="/workouts/program/edit?program=main&day=1">
+          <Link href="/workouts/program/edit?program=main&day=1&mode=edit">
             <Button
               type="button"
               className="h-11 gap-2 bg-[#6B93B8] px-5 text-white hover:bg-[#5a82a7]"
@@ -82,7 +82,7 @@ export function WorkoutProgramList({
       {items.length === 0 ? (
         <div className={cn(clientCard, "px-6 py-16 text-center")}>
           <p className="text-sm text-white/45">{t("workouts.programListEmpty")}</p>
-          <Link href="/workouts/program/edit?program=main&day=1" className="mt-4 inline-block">
+          <Link href="/workouts/program/edit?program=main&day=1&mode=edit" className="mt-4 inline-block">
             <Button
               type="button"
               className="h-11 gap-2 bg-[#6B93B8] px-5 text-white hover:bg-[#5a82a7]"

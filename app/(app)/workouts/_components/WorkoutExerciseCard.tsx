@@ -15,24 +15,28 @@ import { cn } from "@/lib/utils";
 export function WorkoutExerciseCard({
   exercise,
   log,
+  previousWeight,
   completedSets,
   formCheck,
   uploadingFormCheck,
   formCheckLabel,
   message,
   onAddSet,
+  onRemoveSet,
   onUpdateSet,
   onToggleSetComplete,
   onFormCheckSelect,
 }: {
   exercise: WorkoutExercise;
   log?: ExerciseLogState;
+  previousWeight?: string | null;
   completedSets: boolean[];
   formCheck?: FormCheckSubmission;
   uploadingFormCheck: boolean;
   formCheckLabel: string;
   message?: string;
   onAddSet: () => void;
+  onRemoveSet: (setIndex: number) => void;
   onUpdateSet: (setIndex: number, field: "weight" | "reps", value: string) => void;
   onToggleSetComplete: (setIndex: number) => void;
   onFormCheckSelect: (file: File | null) => void;
@@ -45,9 +49,16 @@ export function WorkoutExerciseCard({
 
   return (
     <div className={cn(clientCard, "w-full px-5 py-5 sm:px-6 sm:py-6")}>
-      <h3 className="font-[family-name:var(--font-inter)] text-lg font-extrabold tracking-[-0.03em] text-white">
-        {exercise.name}
-      </h3>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3 className="font-[family-name:var(--font-inter)] text-lg font-extrabold tracking-[-0.03em] text-white">
+          {exercise.name}
+        </h3>
+        {previousWeight ? (
+          <span className="rounded-full border border-[#6B93B8]/40 bg-[#6B93B8]/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#A8C5DC]">
+            {t("workouts.lastWeekWeight", { weight: previousWeight })}
+          </span>
+        ) : null}
+      </div>
       <p className="mt-1 text-[13px] text-white/45">
         {t("common.target")}:{" "}
         {t("workouts.targetLine", {
@@ -67,6 +78,7 @@ export function WorkoutExerciseCard({
             log={log}
             completedSets={completedSets}
             onAddSet={onAddSet}
+            onRemoveSet={onRemoveSet}
             onUpdateSet={onUpdateSet}
             onToggleSetComplete={onToggleSetComplete}
           />

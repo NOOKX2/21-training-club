@@ -6,7 +6,6 @@ import { useSWRConfig } from "swr";
 import { useMuscleReward } from "@/components/MuscleStreakContext";
 import type { ExerciseLogState } from "@/app/(app)/workouts/_components/types";
 import { api } from "@/lib/api-client";
-import { CLIENT_WORKOUT_LOG_WEEK } from "@/lib/app-page-keys";
 import type { CardioLog, FormCheckSubmission, WorkoutExercise, WorkoutSetEntry } from "@/lib/data";
 import { workoutWeekKey, type WorkoutWeekPageData } from "@/lib/hooks/use-app-page";
 import { useWorkoutFormChecks } from "@/lib/hooks/workout/use-workout-form-checks";
@@ -20,6 +19,7 @@ import {
 
 export function useWorkoutClient({
   userId,
+  week,
   day,
   exercises,
   initialLogs,
@@ -30,6 +30,7 @@ export function useWorkoutClient({
   t,
 }: {
   userId: string;
+  week: number;
   day: number;
   exercises: WorkoutExercise[];
   initialLogs: Record<string, ExerciseLogState>;
@@ -39,7 +40,6 @@ export function useWorkoutClient({
   onNavigate?: (day: number) => void;
   t: (key: string) => string;
 }) {
-  const week = CLIENT_WORKOUT_LOG_WEEK;
   const router = useRouter();
   const { mutate } = useSWRConfig();
   const { celebrateMuscleTask } = useMuscleReward();
@@ -56,8 +56,9 @@ export function useWorkoutClient({
   const [cardioLog, setCardioLog] = useState(initialCardioLog);
   const [savingAll, setSavingAll] = useState(false);
   const [allSaved, setAllSaved] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
   const [messages, setMessages] = useState<Record<string, string>>({});
-  const navigationKey = String(day);
+  const navigationKey = `${week}:${day}`;
   const prevNavigationKey = useRef<string | null>(null);
 
   const formChecksApi = useWorkoutFormChecks({
@@ -81,6 +82,7 @@ export function useWorkoutClient({
       setCardioLog(initialCardioLog);
       resetFormChecks(initialFormChecks);
       setAllSaved(false);
+      setShowProgress(false);
       setMessages({});
       return;
     }
@@ -139,9 +141,9 @@ export function useWorkoutClient({
         onNavigate(nextDay);
         return;
       }
-      router.push(`/workouts?day=${nextDay}`);
+      router.push(`/workouts?week=${week}&day=${nextDay}`);
     },
-    [onNavigate, router]
+    [onNavigate, router, week]
   );
 
   const addSet = useCallback((exerciseId: string) => {
@@ -167,6 +169,29 @@ export function useWorkoutClient({
     }));
   }, []);
 
+  const removeSet = useCallback((exerciseId: string, setIndex: number) => {
+    setLogs((prev) => {
+      const entry = prev[exerciseId];
+      const sets = [...(entry?.sets ?? [])];
+      if (sets.length <= 1) return prev;
+      sets.splice(setIndex, 1);
+      return {
+        ...prev,
+        [exerciseId]: {
+          actual_weight: entry?.actual_weight ?? "",
+          actual_reps: entry?.actual_reps ?? "",
+          sets,
+        },
+      };
+    });
+    setCompletedSets((prev) => {
+      const flags = [...(prev[exerciseId] ?? [])];
+      if (flags.length <= 1) return prev;
+      flags.splice(setIndex, 1);
+      return { ...prev, [exerciseId]: flags };
+    });
+  }, []);
+
   const updateSet = useCallback(
     (exerciseId: string, setIndex: number, field: "weight" | "reps", value: string) => {
       setLogs((prev) => {
@@ -187,6 +212,7 @@ export function useWorkoutClient({
   );
 
   const toggleSetComplete = useCallback((exerciseId: string, setIndex: number) => {
+    setShowProgress(true);
     setCompletedSets((prev) => {
       const flags = [...(prev[exerciseId] ?? [])];
       flags[setIndex] = !flags[setIndex];
@@ -195,7 +221,7 @@ export function useWorkoutClient({
   }, []);
 
   const saveExerciseLog = useCallback(
-    async (exerciseId: string, entry: ExerciseLogState) => {
+    async (exerciseId: string, entry: ExerciseLogState, exerciseName?: string) => {
       const sets = entry.sets ?? [];
       const saved = await api<{
         exercise_id: string;
@@ -207,6 +233,7 @@ export function useWorkoutClient({
         body: JSON.stringify({
           user_id: userId,
           exercise_id: exerciseId,
+          exercise_name: exerciseName,
           week,
           day,
           actual_weight: sets[0]?.weight ?? entry.actual_weight ?? "0",
@@ -228,6 +255,7 @@ export function useWorkoutClient({
           ...slice.logs,
           [exerciseId]: {
             exercise_id: exerciseId,
+            exercise_name: exerciseName,
             actual_weight: saved.actual_weight,
             actual_reps: saved.actual_reps,
             sets: saved.sets,
@@ -271,7 +299,7 @@ export function useWorkoutClient({
         if (!entry?.sets?.length) continue;
 
         try {
-          await saveExerciseLog(exercise.id, entry);
+          await saveExerciseLog(exercise.id, entry, exercise.name);
           savedAny = true;
         } catch (err) {
           const message = err instanceof Error ? err.message : t("common.saveFailed");
@@ -299,7 +327,20 @@ export function useWorkoutClient({
       if (errors.length) {
         setMessages((m) => ({ ...m, _all: errors[0] }));
       } else if (savedAny) {
+        setCompletedSets((prev) => {
+          const next: Record<string, boolean[]> = { ...prev };
+          for (const exercise of exercises) {
+            const sets = logs[exercise.id]?.sets ?? [];
+            next[exercise.id] = sets.map(
+              (set, index) =>
+                Boolean(prev[exercise.id]?.[index]) ||
+                Boolean(set.weight.trim() && set.reps.trim())
+            );
+          }
+          return next;
+        });
         setAllSaved(true);
+        setShowProgress(true);
         setTimeout(() => setAllSaved(false), 2000);
         celebrateMuscleTask("workout");
       }
@@ -326,6 +367,7 @@ export function useWorkoutClient({
     uploadingFormCheckId,
     savingAll,
     allSaved,
+    showProgress,
     totalSets,
     completedSetCount,
     messages,
@@ -333,6 +375,7 @@ export function useWorkoutClient({
     uploadFormCheck,
     formCheckButtonLabel,
     addSet,
+    removeSet,
     updateSet,
     toggleSetComplete,
     saveAllLogs,

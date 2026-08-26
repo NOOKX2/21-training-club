@@ -1,3 +1,10 @@
+import { Suspense } from "react";
+import { AdminNutritionPageView } from "@/app/(admin)/admin/nutrition/_components/AdminNutritionPageView";
+
 export default function AdminNutritionPage() {
-  return null;
+  return (
+    <Suspense fallback={null}>
+      <AdminNutritionPageView />
+    </Suspense>
+  );
 }

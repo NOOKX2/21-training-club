@@ -98,7 +98,11 @@ export function openExercisePickerHref(
 }
 
 export function editorHref(programId: string, day: number) {
-  const params = new URLSearchParams({ program: programId, day: String(day) });
+  const params = new URLSearchParams({
+    program: programId,
+    day: String(day),
+    mode: "edit",
+  });
   return `/workouts/program/edit?${params.toString()}`;
 }
 

@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { NextRequest } from "next/server";
+import { parseWorkoutLogWeek } from "../app-page-keys";
 import { getDb } from "../db";
 import { getCurrentUser, getAdminUser } from "../auth";
 import { ObjectId } from "mongodb";
@@ -64,6 +65,17 @@ export async function handleWorkouts(
   try {
     const db = await getDb();
 
+    if (segments[1] === "compare" && req.method === "GET") {
+      const user = await getCurrentUser(req);
+      const day = Math.min(
+        7,
+        Math.max(1, parseInt(req.nextUrl.searchParams.get("day") ?? "1", 10) || 1)
+      );
+      const { getWorkoutWeekComparison } = await import("../data");
+      const comparison = await getWorkoutWeekComparison(user.id, day);
+      return json(comparison);
+    }
+
     if (segments[1] === "week" && segments[2] && req.method === "GET") {
       const week = parseInt(segments[2], 10);
       let workout = await db.collection("workouts").findOne({ week }, { projection: { _id: 0 } });
@@ -75,11 +87,25 @@ export async function handleWorkouts(
       return json(workout);
     }
 
+    if (segments[1] === "week" && segments[2] && req.method === "DELETE") {
+      const user = await getCurrentUser(req);
+      const week = parseWorkoutLogWeek(segments[2]);
+      const query = { user_id: user.id, week };
+      await Promise.all([
+        db.collection("workout_logs").deleteMany(query),
+        db.collection("cardio_logs").deleteMany(query),
+        db.collection("form_checks").deleteMany(query),
+      ]);
+      revalidatePath("/workouts");
+      return json({ week, deleted: true });
+    }
+
     if (segments[1] === "log" && req.method === "POST") {
       const user = await getCurrentUser(req);
       const log = await parseBody<{
         user_id: string;
         exercise_id: string;
+        exercise_name?: string;
         week: number;
         day: number;
         actual_weight: string;
@@ -101,10 +127,12 @@ export async function handleWorkouts(
             reps: String(set.reps ?? "").trim(),
           }))
           .filter((set) => set.weight || set.reps) ?? [];
+      const exerciseName = String(log.exercise_name ?? "").trim();
       const doc = {
         id: uuidv4(),
         user_id: log.user_id,
         exercise_id: log.exercise_id,
+        ...(exerciseName ? { exercise_name: exerciseName } : {}),
         week: log.week,
         day: log.day,
         actual_weight:

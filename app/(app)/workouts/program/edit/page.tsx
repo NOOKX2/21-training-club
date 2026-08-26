@@ -11,12 +11,13 @@ export const dynamic = "force-dynamic";
 export default async function WorkoutProgramEditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ day?: string; program?: string }>;
+  searchParams: Promise<{ day?: string; program?: string; mode?: string }>;
 }) {
   const user = await requireAppUser();
   const params = await searchParams;
   const returnDay = parseWorkoutProgramDay(params.day);
   const programId = parseWorkoutProgramId(params.program);
+  const startInEditMode = params.mode === "edit";
   const { programId: resolvedProgramId, programName, days, videos } =
     await getWorkoutProgramEditorPageData(user.id, programId);
 
@@ -27,6 +28,7 @@ export default async function WorkoutProgramEditPage({
       returnDay={returnDay}
       initialDays={days}
       initialVideos={videos}
+      startInEditMode={startInEditMode}
     />
   );
 }
